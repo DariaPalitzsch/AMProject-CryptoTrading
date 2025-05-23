@@ -1,0 +1,105 @@
+---
+title: "AM Project - Crypto Trading"
+author: "Laura Gullicksen, Erich Gozebina, Daria Palitzsch"
+date: "23/05/2025"
+output: 
+  pdf_document:
+    number_sections: false
+fontsize: 12pt
+geometry: margin=1in
+header-includes:
+  - \usepackage{titlesec}
+  - \titleformat{\section}{\Large\bfseries}{\thesection}{1em}{}
+  - \titleformat{\subsection}{\large\bfseries}{\thesubsection}{1em}{}
+  - \titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{1em}{}
+  - \usepackage{float}
+  - \usepackage{placeins}
+  - \FloatBarrier
+  - \usepackage{mdframed}
+---
+
+```{r setup, include=FALSE}
+#setup chunk to load all required packages
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ggplot2)
+library(skimr)
+library(dplyr)
+# library(stargazer)
+# library(ggpubr)
+# #library(ggalluvial)
+# library(lubridate)
+# library(benford.analysis)
+# library(tidyquant)
+# library(plotly)
+# library(RcppRoll)
+# library(scales)
+# library(cowplot)
+# library(ggforce)
+# library(circlize)
+# library(zoo)
+# library(glmnet)
+# library(PerformanceAnalytics)
+# library(VGAM)
+# library(DescTools)
+# library(readxl)
+# library(broom)
+# library(Quandl)
+# library(kableExtra)
+# library(flextable)
+# library(gridExtra)
+# library(tinytex)
+
+
+
+## setting the correct time zone
+Sys.setlocale("LC_TIME", "English") #set language for dates etc.
+Sys.setenv(TZ='UCT') #set timezone!
+
+
+```
+
+
+```{r, include = FALSE}
+#loading the data 
+prices <- read.csv("data/pricedata/hourly_prices_bitcoin.csv")
+
+#change the data type of the timestamp
+prices <- prices %>% 
+  mutate(hour_timestamp = as.POSIXct(hour_timestamp, format = "%Y-%m-%d %H:%M")) %>%
+  arrange(hour_timestamp) # sort from old to new
+```
+
+
+\begin{mdframed}
+\textbf{Requirements}: Implementation of economically senseful trading strategies using machine learning techniques. \end{mdframed}
+
+## 1. Introduction
+
+## 2. Basic model and statistical analysis
+
+### 2.1 Approach
+
+### 2.2 Implementation
+
+**Backtesting here? or in another section**
+
+### 2.3 Results 
+
+### 2.4 Interpretation
+
+## 3. Extensions
+
+### 3.1 Approaches
+
+### 3.2 Implementation
+
+**Backtesting here? or in another section**
+
+### 3.3 Results 
+
+### 3.4 Interpretation 
+
+## 4. Conclusion
