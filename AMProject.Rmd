@@ -27,10 +27,12 @@ library(tidyverse)
 library(ggplot2)
 library(skimr)
 library(dplyr)
+library(slider)
+library(DescTools)
 # library(stargazer)
 # library(ggpubr)
 # #library(ggalluvial)
-# library(lubridate)
+library(lubridate)
 # library(benford.analysis)
 # library(tidyquant)
 # library(plotly)
@@ -40,7 +42,7 @@ library(dplyr)
 # library(ggforce)
 # library(circlize)
 # library(zoo)
-# library(glmnet)
+library(glmnet)
 # library(PerformanceAnalytics)
 # library(VGAM)
 # library(DescTools)
@@ -64,12 +66,14 @@ Sys.setenv(TZ='UCT') #set timezone!
 
 ```{r, include = FALSE}
 #loading the data 
-prices <- read.csv("data/pricedata/hourly_prices_bitcoin.csv")
+prices <- read.csv("data/pricedata/hourly_prices_0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984.csv")
 
 #change the data type of the timestamp
 prices <- prices %>% 
   mutate(hour_timestamp = as.POSIXct(hour_timestamp, format = "%Y-%m-%d %H:%M")) %>%
+  # mutate(hour_timestamp = as.Date(ymd_hms(hour_timestamp))) %>% 
   arrange(hour_timestamp) # sort from old to new
+
 ```
 
 
@@ -80,11 +84,223 @@ prices <- prices %>%
 
 ## 2. Basic model and statistical analysis
 
+In this section we are implementing a first basic model that classifies **Buy**, **Sell** and **Hold**
+
+```{r, include=FALSE}
+## Create dependent variable 
+#I want to predict the price in the next hour
+#For defining Buy, Sell and Hold we use the 25th and 75th percentile
+
+prices <- prices %>% 
+  mutate(
+    future_return = lead(close_price) / close_price - 1
+  )
+
+
+```
+
+
+Analyse: muss ich normieren? 
+```{r, include = FALSE}
+
+# 1. Übersicht: Dichte und Histogramm
+ggplot(prices, aes(x = future_return)) +
+  geom_histogram(aes(y = ..density..), bins = 100, fill = "skyblue", alpha = 0.6) +
+  geom_density(color = "darkred", size = 1) +
+  labs(title = "Verteilung von future_return", x = "future_return", y = "Dichte")
+
+# 2. Boxplot: Ausreißer sichtbar machen
+ggplot(prices, aes(y = future_return)) +
+  geom_boxplot(fill = "orange", alpha = 0.7) +
+  labs(title = "Boxplot von future_return")
+
+# 3. Kennzahlen
+summary(prices$future_return)
+quantile(prices$future_return, probs = c(0.01, 0.05, 0.95, 0.99), na.rm = TRUE)
+
+```
+
+We have right-skewed data
+
+```{r, include = FALSE}
+# 1%- und 99%-Quantile berechnen
+q_low <- quantile(prices$future_return, 0.01, na.rm = TRUE)
+q_high <- quantile(prices$future_return, 0.99, na.rm = TRUE)
+
+# winsorisieren: alle Werte unter/über der Schwelle auf Grenzwert setzen
+prices <- prices %>%
+  mutate(future_return_wins = pmin(pmax(future_return, q_low), q_high))
+```
+
+
+```{r, include=FALSE}
+#define percentiles: 
+qtiles <- quantile(prices$future_return_wins, probs = c(0.25, 0.75), na.rm = TRUE)
+
+prices <- prices %>% 
+  mutate(
+    signal = case_when(
+      future_return_wins > qtiles[1] ~ "Sell",
+      future_return_wins < qtiles[2] ~ "Buy",
+      TRUE ~ "Hold"
+    )
+  )
+
+
+#TODO: Alternativ rollierendes quantil (z.B. über 90 Stunden)
+
+```
+
+
+```{r, include=FALSE}
+#Define Features: 
+prices <- prices %>% 
+  mutate(
+      mean_24h = slide_dbl(close_price, mean, .before=23, .complete = TRUE),
+      sd_24h = slide_dbl(close_price, sd, .before=23, .complete = TRUE),
+      return_24h = close_price / lag(close_price, 24) -1,
+      fluctuation = high_price - low_price
+  )
+
+
+```
+
+
+```{r, include = FALSE}
+# prices <- prices %>% 
+#   mutate(
+#     fluctuation = high_price - low_price, 
+#     difference = close_price - open_price, 
+#     return = close_price / lag(close_price) - 1,
+#     log_return = log(return), 
+#     #intraday_return = difference / open_price, 
+#     hour = lubridate::hour(hour_timestamp),
+#     
+#     pred_next_closeprice = lead(close_price) - close_price,
+#     
+#     pred_sign_next_closeprice = case_when( 
+#       pred_next_closeprice < 0 ~ -1, #goes down
+#       pred_next_closeprice > 0 ~ 1, # goes up
+#       is.na(pred_next_closeprice) ~ NA,
+#       TRUE ~ 0)#stays the same
+#     
+#     #normierter next_return
+# 
+#   )
+
+
+#add senseful columns -> e.g. day difference (relative to daily open_price)
+
+```
+
+
+
+**Outlier händeln**
+
+
+
+```{r, include=FALSE}
+
+# Ziel: signal (z. B. "Buy", "Sell", "Hold")
+# Features: fluctuation, close_price, mean_24h
+# Daten vorbereiten
+prices <- na.omit(prices)
+
+# Designmatrix & Zielvariable
+x <- model.matrix(signal ~ fluctuation + close_price + mean_24h + sd_24h, prices)[, -1]  # Ohne Intercept
+y <- prices$signal
+
+# Train/Test-Split (50/50)
+split_index <- floor(nrow(prices) * 0.5)
+train.rows <- 1:split_index
+test.rows  <- (split_index + 1):nrow(prices)
+
+# Lasso-Grid für Lambda
+grid <- 10^seq(5, -5, length = 100)
+
+# Lasso-Modell trainieren
+set.seed(1)
+lasso.mod <- glmnet(x[train.rows, ], y[train.rows], 
+                    family = "multinomial", alpha = 1, lambda = grid)
+plot(lasso.mod, xvar = "lambda")
+
+# Cross-Validation zur Auswahl von lambda.min
+cv.out <- cv.glmnet(x[train.rows, ], y[train.rows], 
+                    alpha = 1, family = "multinomial")
+plot(cv.out)
+bestlam <- cv.out$lambda.min
+cat("Bestes Lambda:", bestlam, "\n")
+
+# Prognose auf Testdaten (Wahrscheinlichkeiten)
+lasso.pred <- predict(lasso.mod, s = bestlam, newx = x[test.rows, ], type = "response")
+
+# Wahrscheinlichkeiten → Klassenvorhersage
+# Achtung: lasso.pred ist ein Array mit 3 Dimensionen
+lasso.class <- apply(lasso.pred[,,1], 1, function(row) colnames(lasso.pred)[which.max(row)])
+
+# Konfusionsmatrix
+confusion <- table(Predicted = lasso.class, Actual = y[test.rows])
+print(confusion)
+
+# Optional: Genauigkeit berechnen
+accuracy <- mean(lasso.class == y[test.rows])
+cat("Genauigkeit:", round(accuracy, 4), "\n")
+
+```
+
+
+```{r, include = FALSE}
+#
+prices = na.omit(prices)
+#x = model.matrix(pred_sign_next_closeprice ~ fluctuation + close_price, prices)[,-1]
+x = model.matrix(signal ~ fluctuation + close_price + mean_24h, prices)[,-1]
+y = prices$signal
+
+train.rows = 1:(nrow(prices)/2) #momentan 50:50 -> anpassen 
+grid=10^seq(5,-5,length=100)
+set.seed(1)
+
+lasso.mod = glmnet(x[train.rows, ], y[train.rows], family = "multinomial", alpha = 1, lambda = grid) 
+plot(lasso.mod, xvar = "lambda")
+
+
+ 
+#cross validation (10-fold)
+cv.out=cv.glmnet(x[train.rows,],y[train.rows],alpha=1, family = "multinomial") #alpha = 1 -> Lasso
+plot(cv.out)
+bestlam=cv.out$lambda.min
+bestlam
+log(bestlam)
+
+test.rows = round((nrow(prices)/2 + 1),0):(nrow(prices)-1)
+
+lasso.pred=predict(lasso.mod,s=bestlam,newx=x[test.rows,])
+#mean((lasso.pred-y[test.rows])^2)
+pred_table <- table(Predicted = lasso.pred, Actual = y[1:30920]) %>% 
+  as.data.frame()
+
+# full sample 
+# out=glmnet(x,y,alpha=1,lambda=grid, family = "multinomial") 
+# lasso.coef=predict(out,type="coefficients",s=bestlam)[1:20,]
+# lasso.coef
+# lasso.coef[lasso.coef!=0]
+
+```
+
+
+```{r}
+
+```
+
+
 ### 2.1 Approach
 
 ### 2.2 Implementation
 
 **Backtesting here? or in another section**
+
+**Backtesting Strategies:** 
+ ->Buy&Hold etc 
 
 ### 2.3 Results 
 
