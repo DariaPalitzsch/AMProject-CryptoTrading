@@ -63,7 +63,6 @@ Sys.setenv(TZ='UCT') #set timezone!
 
 ```
 
-
 ```{r, include = FALSE}
 #loading the data 
 prices <- read.csv("data/pricedata/hourly_prices_0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984.csv")
@@ -75,7 +74,6 @@ prices <- prices %>%
   arrange(hour_timestamp) # sort from old to new
 
 ```
-
 
 \begin{mdframed}
 \textbf{Requirements}: Implementation of economically senseful trading strategies using machine learning techniques. \end{mdframed}
@@ -99,8 +97,8 @@ prices <- prices %>%
 
 ```
 
+Analyse: muss ich normieren?
 
-Analyse: muss ich normieren? 
 ```{r, include = FALSE}
 
 # 1. Übersicht: Dichte und Histogramm
@@ -132,7 +130,6 @@ prices <- prices %>%
   mutate(future_return_wins = pmin(pmax(future_return, q_low), q_high))
 ```
 
-
 ```{r, include=FALSE}
 #define percentiles: 
 qtiles <- quantile(prices$future_return_wins, probs = c(0.25, 0.75), na.rm = TRUE)
@@ -140,8 +137,8 @@ qtiles <- quantile(prices$future_return_wins, probs = c(0.25, 0.75), na.rm = TRU
 prices <- prices %>% 
   mutate(
     signal = case_when(
-      future_return_wins > qtiles[1] ~ "Sell",
-      future_return_wins < qtiles[2] ~ "Buy",
+      future_return_wins < qtiles[1] ~ "Sell",
+      future_return_wins > qtiles[2] ~ "Buy",
       TRUE ~ "Hold"
     )
   )
@@ -151,12 +148,11 @@ prices <- prices %>%
 
 ```
 
-
 ```{r, include=FALSE}
 #Define Features: 
 prices <- prices %>% 
   mutate(
-      mean_24h = slide_dbl(close_price, mean, .before=23, .complete = TRUE),
+      mean_24h = close_price / slide_dbl(close_price, mean, .before=23, .complete = TRUE),
       sd_24h = slide_dbl(close_price, sd, .before=23, .complete = TRUE),
       return_24h = close_price / lag(close_price, 24) -1,
       fluctuation = high_price - low_price
@@ -164,7 +160,6 @@ prices <- prices %>%
 
 
 ```
-
 
 ```{r, include = FALSE}
 # prices <- prices %>% 
@@ -193,11 +188,7 @@ prices <- prices %>%
 
 ```
 
-
-
 **Outlier händeln**
-
-
 
 ```{r, include=FALSE}
 
@@ -211,7 +202,7 @@ x <- model.matrix(signal ~ fluctuation + close_price + mean_24h + sd_24h, prices
 y <- prices$signal
 
 # Train/Test-Split (50/50)
-split_index <- floor(nrow(prices) * 0.5)
+split_index <- floor(nrow(prices) * 0.8)
 train.rows <- 1:split_index
 test.rows  <- (split_index + 1):nrow(prices)
 
@@ -247,7 +238,6 @@ accuracy <- mean(lasso.class == y[test.rows])
 cat("Genauigkeit:", round(accuracy, 4), "\n")
 
 ```
-
 
 ```{r, include = FALSE}
 #
@@ -287,11 +277,9 @@ pred_table <- table(Predicted = lasso.pred, Actual = y[1:30920]) %>%
 
 ```
 
-
 ```{r}
 
 ```
-
 
 ### 2.1 Approach
 
@@ -299,10 +287,9 @@ pred_table <- table(Predicted = lasso.pred, Actual = y[1:30920]) %>%
 
 **Backtesting here? or in another section**
 
-**Backtesting Strategies:** 
- ->Buy&Hold etc 
+**Backtesting Strategies:** -\>Buy&Hold etc
 
-### 2.3 Results 
+### 2.3 Results
 
 ### 2.4 Interpretation
 
@@ -314,8 +301,8 @@ pred_table <- table(Predicted = lasso.pred, Actual = y[1:30920]) %>%
 
 **Backtesting here? or in another section**
 
-### 3.3 Results 
+### 3.3 Results
 
-### 3.4 Interpretation 
+### 3.4 Interpretation
 
 ## 4. Conclusion
