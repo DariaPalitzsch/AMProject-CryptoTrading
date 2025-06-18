@@ -1,0 +1,491 @@
+---
+title: "AMProject_Clean"
+author: "Laura Gullicksen, Erich Gozebina, Daria Palitzsch"
+date: "23/05/2025"
+output: 
+  pdf_document:
+    number_sections: false
+fontsize: 12pt
+geometry: margin=1in
+header-includes:
+  - \usepackage{titlesec}
+  - \titleformat{\section}{\Large\bfseries}{\thesection}{1em}{}
+  - \titleformat{\subsection}{\large\bfseries}{\thesubsection}{1em}{}
+  - \titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{1em}{}
+  - \usepackage{float}
+  - \usepackage{placeins}
+  - \FloatBarrier
+  - \usepackage{mdframed}
+---
+
+```{r setup, include=FALSE}
+#setup chunk to load all required packages
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ggplot2)
+library(skimr)
+library(dplyr)
+library(slider)
+library(DescTools)
+# library(stargazer)
+# library(ggpubr)
+# #library(ggalluvial)
+library(lubridate)
+# library(benford.analysis)
+# library(tidyquant)
+# library(plotly)
+# library(RcppRoll)
+# library(scales)
+# library(cowplot)
+# library(ggforce)
+# library(circlize)
+library(zoo)
+library(glmnet)
+# library(PerformanceAnalytics)
+# library(VGAM)
+# library(DescTools)
+# library(readxl)
+# library(broom)
+# library(Quandl)
+# library(kableExtra)
+# library(flextable)
+# library(gridExtra)
+# library(tinytex)
+
+
+
+## setting the correct time zone
+Sys.setlocale("LC_TIME", "English") #set language for dates etc.
+Sys.setenv(TZ='UCT') #set timezone!
+
+```
+
+
+## 1. Introduction
+
+#TODO: describe data choice
+
+## 2. Data & Descriptive Analysis
+
+#TODO: Explain the daily aggregation -> 7-day-trading-strategy -> daily makes more sense
+
+
+```{r, include = FALSE}
+#Load the price data of CHAINLINK
+prices_link <- read.csv("data/pricedata/hourly_prices_0x514910771AF9Ca656af840dff83E8264EcF986CA.csv")
+
+#change the data type of the timestamp
+prices_link <- prices_link %>% 
+  mutate(hour_timestamp = as.POSIXct(hour_timestamp, format = "%Y-%m-%d %H:%M")) %>%
+  # mutate(hour_timestamp = as.Date(ymd_hms(hour_timestamp))) %>% 
+  arrange(hour_timestamp) # sort from old to new
+
+
+# Aggregate to daily close price (last available hourly close of each day)
+df_daily <- prices_link %>%
+  mutate(date = as.Date(hour_timestamp)) %>%
+  group_by(date) %>%
+  summarise(
+    close_price = last(close_price),
+    open_price = first(open_price),
+    high_price = max(high_price),
+    low_price = min(low_price)
+  ) %>%
+  arrange(date) %>%
+  mutate(
+    log_return = log(close_price / lag(close_price))
+  )
+
+# View the result
+head(df_daily)
+
+```
+
+
+Using log returns instead of simple (arithmetic) returns is a standard practice in financial econometrics and modeling.
+
+- Log returns are more symmetrically distributed and are better approximated by a normal distribution, especially for small time intervals (e.g., hourly/daily). This makes them more suitable for:
+  - Linear models
+  - Hypothesis testing
+  - Machine learning regressors
+  
+- Because log returns are additive, they allow you to aggregate returns over multiple periods simply by summing simple return becomes undefined.
+Log return avoids this issue as long as prices are strictly positive, which is true for most financial assets (especially crypto).
+
+
+```{r}
+# Descriptive stats for prices and returns
+summary_stats <- df_daily %>%
+  summarise(
+    n_obs = n(),
+    mean_close = mean(close_price, na.rm = TRUE),
+    sd_close = sd(close_price, na.rm = TRUE),
+    min_close = min(close_price, na.rm = TRUE),
+    max_close = max(close_price, na.rm = TRUE),
+    mean_return = mean(log_return, na.rm = TRUE),
+    sd_return = sd(log_return, na.rm = TRUE),
+    min_return = min(log_return, na.rm = TRUE),
+    max_return = max(log_return, na.rm = TRUE)
+  )
+
+summary_stats_long <- as.data.frame(t(summary_stats))
+colnames(summary_stats_long) <- "Value"
+
+# Add a column for metric names
+summary_stats_long <- tibble::rownames_to_column(summary_stats_long, var = "Statistic")
+
+# Show result
+summary_stats_long
+
+```
+```{r}
+#TODO: Show them side-by-side 
+
+# Plot closing price
+# ggplot(prices_link, aes(x = date, y = close_price)) +
+#   geom_line(color = "steelblue") +
+#   labs(title = "Daily Close Price", x = "Date", y = "Price")
+# 
+# # Plot returns
+# ggplot(prices_link, aes(x = date, y = log_return)) +
+#   geom_line(color = "darkred") +
+#   labs(title = "Daily Log Returns", x = "Date", y = "Log Return")
+
+```
+```{r}
+
+# ACF plot of returns
+acf(na.omit(df_daily$log_return), main = "ACF of Daily Log Returns")
+
+```
+Interpretation: 
+The autocorrelation function of daily log returns shows no statistically significant linear dependence, indicating that past returns do not linearly predict future returns. This supports the weak-form Efficient Market Hypothesis. However, this does not rule out the presence of exploitable patterns through non-linear or directional indicators. Therefore, we adopt a momentum-based strategy, using the sign of past multi-day returns to generate long or short trading signals.
+
+## 3. Standard Model 
+
+#Momentum Signal Strategy
+
+We define the 7-day momentum as the log return over the past 7 days:
+\[
+\text{Momentum}_t = \log\left(\frac{P_t}{P_{t-7}}\right)
+\]
+
+The trading signal is then determined as:
+\[
+\text{Signal}_t =
+\begin{cases}
++1 & \text{if } \text{Momentum}_t > 0 \quad \text{(go long)} \\
+-1 & \text{if } \text{Momentum}_t < 0 \quad \text{(go short)} \\
+\;\;0 & \text{otherwise (no position)}
+\end{cases}
+\]
+
+The strategy return is computed as:
+\[
+r^{\text{strategy}}_{t+1} = \text{Signal}_t \cdot r_{t+1}
+\]
+where \( r_{t+1} = \log\left(\frac{P_{t+1}}{P_t}\right) \) is the daily log return.
+
+```{r}
+
+# 1. Compute 7-day momentum
+df_daily <- df_daily %>%
+  mutate(
+    momentum_7d = log(close_price / lag(close_price, 7)),
+    signal = case_when(
+      momentum_7d > 0 ~ 1,   # Long
+      momentum_7d < 0 ~ -1,  # Short
+      TRUE ~ 0               # No signal
+    )
+  )
+
+# 2. Shift signal forward by one day to avoid look-ahead bias
+df_daily <- df_daily %>%
+  mutate(
+    signal_lagged = lag(signal),
+    strategy_return = signal_lagged * log_return
+  )
+
+```
+
+
+#TODO: insert standard model with momentum
+
+
+
+To enhance the predictive power of the benchmark model, we extend it by incorporating additional explanatory variables that capture short- and medium-term dynamics. These include:
+
+\begin{itemize}
+  \item 7-day and 14-day momentum indicators,
+  \item lagged daily returns (1-day and 2-day),
+  \item and a rolling volatility measure.
+\end{itemize}
+
+The extended predictive regression model takes the following form:
+
+\[
+r_{t+1} = \alpha + \beta_1 \cdot \text{Momentum}_t^{(7)} + \beta_2 \cdot \text{Momentum}_t^{(14)} + \beta_3 \cdot r_t + \beta_4 \cdot r_{t-1} + \beta_5 \cdot \text{Volatility}_t^{(7)} + \varepsilon_{t+1}
+\]
+
+where:
+\begin{align*}
+r_{t+1} &:= \log\left(\frac{P_{t+1}}{P_t}\right) \quad \text{(one-day-ahead log return)} \\
+\text{Momentum}_t^{(h)} &:= \log\left(\frac{P_t}{P_{t-h}}\right) \quad \text{for } h = 7, 14 \\
+\text{Volatility}_t^{(7)} &:= \text{std} \left( r_{t-6}, \ldots, r_t \right)
+\end{align*}
+
+This model is estimated via ordinary least squares (OLS) using the in-sample data. By incorporating these additional predictors, we aim to capture not only trend-following behavior but also short-term mean reversion and volatility clustering patterns in returns.
+
+
+```{r}
+# Step 1: Add features to the dataset
+df_extended <- df_daily %>%
+  mutate(
+    # Momentum over 7 and 14 days
+    momentum_7d = log(close_price / lag(close_price, 7)),
+    momentum_14d = log(close_price / lag(close_price, 14)),
+
+    # Lagged returns
+    return_lag1 = lag(log_return, 1),
+    return_lag2 = lag(log_return, 2),
+
+    # Volatility: rolling 7-day standard deviation of returns
+    volatility_7d = rollapply(log_return, width = 7, FUN = sd, align = "right", fill = NA),
+
+    # Target: next day's return
+    target_return = lead(log_return, 1)
+  ) %>%
+  drop_na()  # Remove rows with missing values
+
+# Step 2: Fit the extended linear model
+model_extended <- lm(target_return ~ momentum_7d + momentum_14d +
+                       return_lag1 + return_lag2 + volatility_7d,
+                     data = df_extended)
+
+# Step 3: Summary of model results
+summary(model_extended)
+
+```
+
+#TODO: INterpret results
+
+
+
+## 4. Extension 
+
+**Lasso Model**
+
+To prevent overfitting and perform automatic variable selection, we extend our linear modeling approach using the Lasso (Least Absolute Shrinkage and Selection Operator). The Lasso adds a penalty term to the standard OLS loss function, shrinking some coefficient estimates toward zero. This results in a sparse model that may improve predictive performance, particularly when dealing with multiple correlated predictors.
+
+The Lasso estimator is defined as the solution to the following optimization problem:
+
+\[
+\hat{\beta}^{\text{lasso}} = \arg \min_{\beta_0, \beta} \left\{ \sum_{i=1}^{n} \left( y_i - \beta_0 - \sum_{j=1}^{p} x_{ij} \beta_j \right)^2 + \lambda \sum_{j=1}^{p} |\beta_j| \right\}
+\]
+
+where:
+\begin{itemize}
+  \item \( y_i \) is the target variable (e.g., one-day-ahead return),
+  \item \( x_{ij} \) are the predictor variables,
+  \item \( \beta_j \) are the coefficients,
+  \item \( \lambda \geq 0 \) is the tuning parameter controlling the strength of the penalty.
+\end{itemize}
+
+As \( \lambda \) increases, more coefficients are shrunk toward zero. For \( \lambda = 0 \), the solution coincides with OLS.
+
+We use 10-fold cross-validation to select the optimal \( \lambda \) that minimizes the mean squared prediction error on held-out data.
+
+```{r}
+
+# Step 1: Create the design matrix and response
+X <- model.matrix(target_return ~ momentum_7d + momentum_14d +
+                    return_lag1 + return_lag2 + volatility_7d,
+                  data = df_extended)[, -1]  # remove intercept column
+y <- df_extended$target_return
+
+# Step 2: Run cross-validated Lasso
+set.seed(42)
+cv_lasso <- cv.glmnet(X, y, alpha = 1, nfolds = 10)
+
+# Plot cross-validation curve
+plot(cv_lasso)
+
+# Best lambda
+best_lambda <- cv_lasso$lambda.min
+cat("Optimal lambda:", best_lambda, "\n")
+
+# Step 3: Fit final Lasso model using best lambda
+model_lasso <- glmnet(X, y, alpha = 1, lambda = best_lambda)
+
+# Show coefficients
+coef(model_lasso)
+
+```
+
+
+## 5. Forecasting & Backtesting
+
+
+**in-sample testing**
+
+\section*{4. In-Sample Testing}
+
+To evaluate the performance of our predictive models, we begin by conducting in-sample (IS) testing. This involves fitting each model on a fixed training sample and evaluating how well the model explains historical variation in the data.
+
+We assess in-sample performance using the following criteria:
+
+\begin{itemize}
+  \item \textbf{Mean Squared Error (MSE)}: Measures the average squared difference between predicted and actual returns.
+  \[
+  \text{MSE} = \frac{1}{n} \sum_{i=1}^{n} (\hat{y}_i - y_i)^2
+  \]
+  
+  \item \textbf{Adjusted \( R^2 \)}: Indicates the proportion of variance explained by the model, adjusted for the number of predictors.
+  \[
+  R_{\text{adj}}^2 = 1 - \frac{\text{RSS}/(n - p - 1)}{\text{TSS}/(n - 1)}
+  \]
+
+  \item \textbf{Directional Accuracy}: The fraction of times the predicted direction matches the actual direction of returns.
+  \[
+  \text{Accuracy} = \frac{1}{n} \sum_{i=1}^{n} \mathbb{1} \left( \text{sign}(\hat{y}_i) = \text{sign}(y_i) \right)
+  \]
+\end{itemize}
+
+These metrics are computed for all three models:
+\begin{enumerate}
+  \item Benchmark (7-day momentum only),
+  \item Extended linear model with multiple features,
+  \item Lasso-regularized regression with automatic feature selection.
+\end{enumerate}
+
+```{r}
+# --- Benchmark model (already estimated) ---
+model_benchmark <- lm(target_return ~ momentum_7d, data = df_extended)
+
+# --- Predictions ---
+df_extended <- df_extended %>%
+  mutate(
+    pred_benchmark = predict(model_benchmark),
+    pred_extended = predict(model_extended),
+    pred_lasso = as.numeric(predict(model_lasso, newx = X)),
+
+    # Directional accuracy
+    dir_true = sign(target_return),
+    dir_benchmark = sign(pred_benchmark),
+    dir_extended = sign(pred_extended),
+    dir_lasso = sign(pred_lasso)
+  )
+
+# --- Evaluation metrics ---
+mse <- function(pred, actual) mean((pred - actual)^2)
+acc <- function(pred, actual) mean(sign(pred) == sign(actual))
+
+results_is <- tibble(
+  Model = c("Benchmark", "Extended", "Lasso"),
+  MSE = c(
+    mse(df_extended$pred_benchmark, df_extended$target_return),
+    mse(df_extended$pred_extended, df_extended$target_return),
+    mse(df_extended$pred_lasso, df_extended$target_return)
+  ),
+  Directional_Accuracy = c(
+    acc(df_extended$pred_benchmark, df_extended$target_return),
+    acc(df_extended$pred_extended, df_extended$target_return),
+    acc(df_extended$pred_lasso, df_extended$target_return)
+  ),
+  Adj_R2 = c(
+    summary(model_benchmark)$adj.r.squared,
+    summary(model_extended)$adj.r.squared,
+    NA  # glmnet doesn't provide adj. R^2
+  )
+)
+
+print(results_is)
+
+```
+
+
+**Out-of-sample testing:**
+
+```{r}
+# Rolling OOS function (for any linear model formula)
+run_oos_forecast <- function(df, model_formula, window_size = 500) {
+  n <- nrow(df)
+  preds <- rep(NA, n)
+  actuals <- rep(NA, n)
+  mean_forecast <- rep(NA, n)
+
+  for (i in (window_size + 1):(n - 1)) {
+    train_data <- df[(i - window_size):(i - 1), ]
+    test_data <- df[i, ]
+
+    model <- lm(model_formula, data = train_data)
+    preds[i + 1] <- predict(model, newdata = test_data)
+    actuals[i + 1] <- df$target_return[i + 1]
+    mean_forecast[i + 1] <- mean(train_data$target_return, na.rm = TRUE)
+  }
+
+  tibble(
+    time = df$date,
+    forecast = preds,
+    actual = actuals,
+    mean_forecast = mean_forecast
+  ) %>% drop_na()
+}
+
+# Run for benchmark model
+oos_benchmark <- run_oos_forecast(df_extended, target_return ~ momentum_7d)
+
+# Compute R2_OS
+r2_os <- 1 - sum((oos_benchmark$actual - oos_benchmark$forecast)^2) /
+             sum((oos_benchmark$actual - oos_benchmark$mean_forecast)^2)
+cat("OOS R^2 (Benchmark):", round(r2_os, 4), "\n")
+
+# Plot CSPE
+cspe_df <- oos_benchmark %>%
+  mutate(
+    cspe_model = cumsum((actual - forecast)^2),
+    cspe_mean = cumsum((actual - mean_forecast)^2)
+  )
+
+ggplot(cspe_df, aes(x = time)) +
+  geom_line(aes(y = cspe_mean, color = "Historical Mean")) +
+  geom_line(aes(y = cspe_model, color = "Model Forecast")) +
+  labs(title = "Cumulative Squared Prediction Error (CSPE)",
+       x = "Date", y = "CSPE") +
+  scale_color_manual(values = c("Historical Mean" = "black", "Model Forecast" = "blue"))
+
+```
+
+
+
+
+
+
+
+```{r}
+
+#Performance Comparison Momentum 7-day and buy-hold
+
+# Cumulative returns
+df_daily <- df_daily %>%
+  mutate(
+    cum_ret_strategy = cumsum(coalesce(strategy_return, 0)),
+    cum_ret_bh = cumsum(coalesce(log_return, 0))
+  )
+
+# Plot
+library(ggplot2)
+ggplot(df_daily, aes(x = date)) +
+  geom_line(aes(y = cum_ret_strategy, color = "Strategy")) +
+  geom_line(aes(y = cum_ret_bh, color = "Buy & Hold")) +
+  labs(title = "7-Day Momentum Strategy vs Buy-and-Hold",
+       x = "Date", y = "Cumulative Log Return") +
+  scale_color_manual(values = c("Strategy" = "blue", "Buy & Hold" = "black"))
+```
+
+## 6. Conclusion
+
+
+
