@@ -501,6 +501,14 @@ print(results_is)
 
 #TODO: review code, does not work at the moment 
 
+#TODO: 
+Evaluate:
+o Sharpe ratio
+o Cumulative return
+o OOSR2
+o Hit rate (how often you correctly predict direction)
+
+
 ```{r, include = FALSE}
 # Rolling OOS function (for any linear model formula)
 # run_oos_forecast <- function(df, model_formula, window_size = 500) {
@@ -573,6 +581,8 @@ print(results_is)
 #        x = "Date", y = "Cumulative Log Return") +
 #   scale_color_manual(values = c("Strategy" = "blue", "Buy & Hold" = "black"))
 ```
+
+
 
 ## 6. Conclusion
 
