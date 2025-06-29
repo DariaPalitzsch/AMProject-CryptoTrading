@@ -53,6 +53,7 @@ library(glmnet)
 # library(flextable)
 # library(gridExtra)
 # library(tinytex)
+library(TTR)
 
 
 
@@ -95,7 +96,10 @@ df_daily <- prices_link %>%
   ) %>%
   arrange(date) %>%
   mutate(
-    log_return = log(close_price / lag(close_price))
+    log_return = log(close_price / lag(close_price)),
+    log_open_return = log(open_price / lag(open_price)),
+    log_high_return = log(high_price / lag(high_price)),
+    log_return_low_return = log(low_price / lag(low_price)) 
   )
 
 # View the result
@@ -188,7 +192,7 @@ r^{\text{strategy}}_{t+1} = \text{Signal}_t \cdot r_{t+1}
 \]
 where \( r_{t+1} = \log\left(\frac{P_{t+1}}{P_t}\right) \) is the daily log return.
 
-```{r}
+```{r, include = FALSE}
 
 # 1. Compute 7-day momentum
 df_daily <- df_daily %>%
@@ -212,47 +216,117 @@ df_daily <- df_daily %>%
 
 
 #TODO: insert standard model with momentum
+```{r, include = FALSE}
+
+```
 
 
+#TODO: explain result of standard 7 day momentum strategy 
 
-To enhance the predictive power of the benchmark model, we extend it by incorporating additional explanatory variables that capture short- and medium-term dynamics. These include:
+
+## 4. Extension 
+
+**Extension of our OLS**
+
+To enhance the predictive power of the benchmark model, we extend it by incorporating a broader set of explanatory variables that capture not only short- and medium-term price dynamics, but also market sentiment, technical indicators, and inter-asset relationships. These include:
 
 \begin{itemize}
-  \item 7-day and 14-day momentum indicators,
-  \item lagged daily returns (1-day and 2-day),
-  \item and a rolling volatility measure.
+  \item Momentum indicators over 3, 7, and 14 days,
+  \item Lagged daily returns (1-day and 2-day),
+  \item A 7-day rolling volatility measure,
+  \item Technical indicators such as the 14-day Relative Strength Index (RSI), MACD value and histogram, Simple Moving Average difference, and Average True Range (ATR),
+  \item Day-of-week dummy variables to capture potential calendar effects,
+  \item BTC-based predictors: daily BTC return, 7-day BTC momentum, and 7-day BTC volatility.
 \end{itemize}
 
-The extended predictive regression model takes the following form:
+The extended predictive regression model is specified as:
 
 \[
-r_{t+1} = \alpha + \beta_1 \cdot \text{Momentum}_t^{(7)} + \beta_2 \cdot \text{Momentum}_t^{(14)} + \beta_3 \cdot r_t + \beta_4 \cdot r_{t-1} + \beta_5 \cdot \text{Volatility}_t^{(7)} + \varepsilon_{t+1}
+r_{t+1} = \alpha + \sum_{h \in \{3,7,14\}} \beta_h \cdot \text{Momentum}_t^{(h)} + \gamma_1 \cdot r_t + \gamma_2 \cdot r_{t-1} + \delta \cdot \text{Volatility}_t^{(7)} + \sum_j \theta_j \cdot X_{t}^{(j)} + \varepsilon_{t+1}
 \]
 
-where:
+where \( X_t^{(j)} \) represents the set of technical indicators (RSI, MACD, ATR, SMA), weekday dummies, and BTC-based predictors.
+
 \begin{align*}
-r_{t+1} &:= \log\left(\frac{P_{t+1}}{P_t}\right) \quad \text{(one-day-ahead log return)} \\
-\text{Momentum}_t^{(h)} &:= \log\left(\frac{P_t}{P_{t-h}}\right) \quad \text{for } h = 7, 14 \\
-\text{Volatility}_t^{(7)} &:= \text{std} \left( r_{t-6}, \ldots, r_t \right)
+r_{t+1} &:= \log\left(\frac{P_{t+1}}{P_t}\right) \quad \text{(one-day-ahead LINK return)} \\
+\text{Momentum}_t^{(h)} &:= \log\left(\frac{P_t}{P_{t-h}}\right) \quad \text{for } h \in \{3, 7, 14\} \\
+\text{Volatility}_t^{(7)} &:= \text{std} \left( r_{t-6}, \ldots, r_t \right) \\
+\text{BTC return}_t &:= \log\left(\frac{P^{\text{BTC}}_t}{P^{\text{BTC}}_{t-1}} \right) \\
+\text{BTC Momentum}_t^{(7)} &:= \log\left(\frac{P^{\text{BTC}}_t}{P^{\text{BTC}}_{t-7}}\right) \\
+\text{BTC Volatility}_t^{(7)} &:= \text{std} \left( r^{\text{BTC}}_{t-6}, \ldots, r^{\text{BTC}}_t \right)
 \end{align*}
 
-This model is estimated via ordinary least squares (OLS) using the in-sample data. By incorporating these additional predictors, we aim to capture not only trend-following behavior but also short-term mean reversion and volatility clustering patterns in returns.
+This model is estimated via Ordinary Least Squares (OLS) on the in-sample period. By incorporating this rich feature set, we aim to capture a range of return drivers including price trends, market overreaction, volatility clustering, inter-market dependencies, and behavioral biases tied to trading weekdays.
 
 
-```{r}
+```{r, include = FALSE}
+#We load the bitcoin data on our own because we want to have the full time period aligned with the Chainlink data we have
+
+# Source https://coinmarketcap.com/currencies/bitcoin/historical-data/
+own_btc_prices <- read.csv("data/pricedata/Daily_Bitcoin_Own.csv", sep = ";") 
+
+own_btc_prices <- own_btc_prices %>% 
+  mutate(date = as.Date(timestamp)) %>%
+  mutate(
+    btc_return = log(close / lag(close)),
+    btc_momentum_7d = log(close / lag(close, 7)),
+    btc_volatility_7d = rollapply(log(close / lag(close)),
+                                  width = 7, FUN = sd, fill = NA, align = "right")
+  ) %>%
+  select(date, btc_return, btc_momentum_7d, btc_volatility_7d)
+
+df_daily <- df_daily %>%  
+   left_join(own_btc_prices, by = "date") 
+
+  
+  
+```
+
+
+```{r, include = FALSE}
 # Step 1: Add features to the dataset
 df_extended <- df_daily %>%
   mutate(
-    # Momentum over 7 and 14 days
+    # Momentum over 3, 7 and 14 days
+    momentum_3d = log(close_price / lag(close_price, 3)),
     momentum_7d = log(close_price / lag(close_price, 7)),
     momentum_14d = log(close_price / lag(close_price, 14)),
 
-    # Lagged returns
+    # Lagged daily returns
     return_lag1 = lag(log_return, 1),
     return_lag2 = lag(log_return, 2),
 
     # Volatility: rolling 7-day standard deviation of returns
     volatility_7d = rollapply(log_return, width = 7, FUN = sd, align = "right", fill = NA),
+    
+    # RSI over 14 days
+    rsi_14 = RSI(close_price, n = 14),
+    
+    # Moving average trend signals
+    sma_7 = SMA(close_price, n = 7),
+    sma_14 = SMA(close_price, n = 14),
+    
+    # difference between short and long Moving average (trend strength)
+    sma_diff = sma_7 - sma_14,
+    
+    #MACD
+    macd_val = data.frame(MACD(close_price, nFast = 12, nSlow = 26, nSig = 9))$macd,
+    macd_signal = data.frame(MACD(close_price, nFast = 12, nSlow = 26, nSig = 9))$signal,
+    macd_hist = macd_val - macd_signal,
+    
+    #ATR (Average True Range) over 14 days
+    atr_14 = data.frame(ATR(HLC = data.frame(
+      high = high_price,
+      low = low_price,
+      close = close_price), n = 14))$atr,
+    
+    #weekdays
+    weekday = wday(date, label = TRUE, abbr = TRUE),
+         monday = ifelse(weekday == "Mon", 1, 0),
+         tuesday = ifelse(weekday == "Tue", 1, 0),
+         wednesday = ifelse(weekday == "Wed", 1, 0),
+         thursday = ifelse(weekday == "Thu", 1, 0),
+         friday = ifelse(weekday == "Fri", 1, 0),
 
     # Target: next day's return
     target_return = lead(log_return, 1)
@@ -260,20 +334,25 @@ df_extended <- df_daily %>%
   drop_na()  # Remove rows with missing values
 
 # Step 2: Fit the extended linear model
-model_extended <- lm(target_return ~ momentum_7d + momentum_14d +
-                       return_lag1 + return_lag2 + volatility_7d,
+model_extended <- lm(target_return ~ 
+                       momentum_3d + momentum_7d + momentum_14d + 
+                            return_lag1 + return_lag2 + 
+                            volatility_7d + rsi_14 + sma_diff + 
+                            macd_val + macd_hist + atr_14 + 
+                            monday + tuesday + wednesday + thursday + friday +
+                            btc_return + btc_momentum_7d + btc_volatility_7d,
                      data = df_extended)
 
 # Step 3: Summary of model results
 summary(model_extended)
 
 ```
-
-#TODO: INterpret results
-
+#TODO: generate nicer latex table output of the regression results
 
 
-## 4. Extension 
+#TODO: Description and interpretation of output
+
+
 
 **Lasso Model**
 
@@ -297,11 +376,16 @@ As \( \lambda \) increases, more coefficients are shrunk toward zero. For \( \la
 
 We use 10-fold cross-validation to select the optimal \( \lambda \) that minimizes the mean squared prediction error on held-out data.
 
-```{r}
+```{r, include = FALSE}
 
 # Step 1: Create the design matrix and response
-X <- model.matrix(target_return ~ momentum_7d + momentum_14d +
-                    return_lag1 + return_lag2 + volatility_7d,
+X <- model.matrix(target_return ~ 
+                    momentum_3d + momentum_7d + momentum_14d + 
+                    return_lag1 + return_lag2 + 
+                    volatility_7d + rsi_14 + sma_diff + 
+                    macd_val + macd_hist + atr_14 + 
+                    monday + tuesday + wednesday + thursday + friday +
+                    btc_return + btc_momentum_7d + btc_volatility_7d,
                   data = df_extended)[, -1]  # remove intercept column
 y <- df_extended$target_return
 
@@ -310,7 +394,7 @@ set.seed(42)
 cv_lasso <- cv.glmnet(X, y, alpha = 1, nfolds = 10)
 
 # Plot cross-validation curve
-plot(cv_lasso)
+#plot(cv_lasso)
 
 # Best lambda
 best_lambda <- cv_lasso$lambda.min
@@ -323,6 +407,10 @@ model_lasso <- glmnet(X, y, alpha = 1, lambda = best_lambda)
 coef(model_lasso)
 
 ```
+
+#TODO: generate nicer output 
+
+#TODO: explain the results
 
 
 ## 5. Forecasting & Backtesting
@@ -360,7 +448,7 @@ These metrics are computed for all three models:
   \item Lasso-regularized regression with automatic feature selection.
 \end{enumerate}
 
-```{r}
+```{r, include = FALSE}
 # --- Benchmark model (already estimated) ---
 model_benchmark <- lm(target_return ~ momentum_7d, data = df_extended)
 
@@ -405,84 +493,85 @@ print(results_is)
 
 ```
 
+#TODO: interpret results
+
+
 
 **Out-of-sample testing:**
 
-```{r}
+#TODO: review code, does not work at the moment 
+
+```{r, include = FALSE}
 # Rolling OOS function (for any linear model formula)
-run_oos_forecast <- function(df, model_formula, window_size = 500) {
-  n <- nrow(df)
-  preds <- rep(NA, n)
-  actuals <- rep(NA, n)
-  mean_forecast <- rep(NA, n)
-
-  for (i in (window_size + 1):(n - 1)) {
-    train_data <- df[(i - window_size):(i - 1), ]
-    test_data <- df[i, ]
-
-    model <- lm(model_formula, data = train_data)
-    preds[i + 1] <- predict(model, newdata = test_data)
-    actuals[i + 1] <- df$target_return[i + 1]
-    mean_forecast[i + 1] <- mean(train_data$target_return, na.rm = TRUE)
-  }
-
-  tibble(
-    time = df$date,
-    forecast = preds,
-    actual = actuals,
-    mean_forecast = mean_forecast
-  ) %>% drop_na()
-}
-
-# Run for benchmark model
-oos_benchmark <- run_oos_forecast(df_extended, target_return ~ momentum_7d)
-
-# Compute R2_OS
-r2_os <- 1 - sum((oos_benchmark$actual - oos_benchmark$forecast)^2) /
-             sum((oos_benchmark$actual - oos_benchmark$mean_forecast)^2)
-cat("OOS R^2 (Benchmark):", round(r2_os, 4), "\n")
-
-# Plot CSPE
-cspe_df <- oos_benchmark %>%
-  mutate(
-    cspe_model = cumsum((actual - forecast)^2),
-    cspe_mean = cumsum((actual - mean_forecast)^2)
-  )
-
-ggplot(cspe_df, aes(x = time)) +
-  geom_line(aes(y = cspe_mean, color = "Historical Mean")) +
-  geom_line(aes(y = cspe_model, color = "Model Forecast")) +
-  labs(title = "Cumulative Squared Prediction Error (CSPE)",
-       x = "Date", y = "CSPE") +
-  scale_color_manual(values = c("Historical Mean" = "black", "Model Forecast" = "blue"))
+# run_oos_forecast <- function(df, model_formula, window_size = 500) {
+#   n <- nrow(df)
+#   preds <- rep(NA, n)
+#   actuals <- rep(NA, n)
+#   mean_forecast <- rep(NA, n)
+# 
+#   for (i in (window_size + 1):(n - 1)) {
+#     train_data <- df[(i - window_size):(i - 1), ]
+#     test_data <- df[i, ]
+# 
+#     model <- lm(model_formula, data = train_data)
+#     preds[i + 1] <- predict(model, newdata = test_data)
+#     actuals[i + 1] <- df$target_return[i + 1]
+#     mean_forecast[i + 1] <- mean(train_data$target_return, na.rm = TRUE)
+#   }
+# 
+#   tibble(
+#     time = df$date,
+#     forecast = preds,
+#     actual = actuals,
+#     mean_forecast = mean_forecast
+#   ) %>% drop_na()
+# }
+# 
+# # Run for benchmark model
+# oos_benchmark <- run_oos_forecast(df_extended, target_return ~ momentum_7d)
+# 
+# # Compute R2_OS
+# r2_os <- 1 - sum((oos_benchmark$actual - oos_benchmark$forecast)^2) /
+#              sum((oos_benchmark$actual - oos_benchmark$mean_forecast)^2)
+# cat("OOS R^2 (Benchmark):", round(r2_os, 4), "\n")
+# 
+# # Plot CSPE
+# cspe_df <- oos_benchmark %>%
+#   mutate(
+#     cspe_model = cumsum((actual - forecast)^2),
+#     cspe_mean = cumsum((actual - mean_forecast)^2)
+#   )
+# 
+# ggplot(cspe_df, aes(x = time)) +
+#   geom_line(aes(y = cspe_mean, color = "Historical Mean")) +
+#   geom_line(aes(y = cspe_model, color = "Model Forecast")) +
+#   labs(title = "Cumulative Squared Prediction Error (CSPE)",
+#        x = "Date", y = "CSPE") +
+#   scale_color_manual(values = c("Historical Mean" = "black", "Model Forecast" = "blue"))
 
 ```
 
 
 
-
-
-
-
-```{r}
+```{r, include = FALSE}
 
 #Performance Comparison Momentum 7-day and buy-hold
 
 # Cumulative returns
-df_daily <- df_daily %>%
-  mutate(
-    cum_ret_strategy = cumsum(coalesce(strategy_return, 0)),
-    cum_ret_bh = cumsum(coalesce(log_return, 0))
-  )
-
-# Plot
-library(ggplot2)
-ggplot(df_daily, aes(x = date)) +
-  geom_line(aes(y = cum_ret_strategy, color = "Strategy")) +
-  geom_line(aes(y = cum_ret_bh, color = "Buy & Hold")) +
-  labs(title = "7-Day Momentum Strategy vs Buy-and-Hold",
-       x = "Date", y = "Cumulative Log Return") +
-  scale_color_manual(values = c("Strategy" = "blue", "Buy & Hold" = "black"))
+# df_daily <- df_daily %>%
+#   mutate(
+#     cum_ret_strategy = cumsum(coalesce(strategy_return, 0)),
+#     cum_ret_bh = cumsum(coalesce(log_return, 0))
+#   )
+# 
+# # Plot
+# library(ggplot2)
+# ggplot(df_daily, aes(x = date)) +
+#   geom_line(aes(y = cum_ret_strategy, color = "Strategy")) +
+#   geom_line(aes(y = cum_ret_bh, color = "Buy & Hold")) +
+#   labs(title = "7-Day Momentum Strategy vs Buy-and-Hold",
+#        x = "Date", y = "Cumulative Log Return") +
+#   scale_color_manual(values = c("Strategy" = "blue", "Buy & Hold" = "black"))
 ```
 
 ## 6. Conclusion
