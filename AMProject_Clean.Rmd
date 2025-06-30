@@ -66,12 +66,11 @@ Sys.setenv(TZ='UCT') #set timezone!
 
 ## 1. Introduction
 
-#TODO: describe data choice
+#TODO: describe data choice -> Laura 
 
 ## 2. Data & Descriptive Analysis
 
-#TODO: Explain the daily aggregation -> 7-day-trading-strategy -> daily makes more sense
-
+#TODO: Explain the daily aggregation -> 7-day-trading-strategy -> daily makes more senses -> Daria 
 
 ```{r, include = FALSE}
 #Load the price data of CHAINLINK
@@ -107,6 +106,7 @@ head(df_daily)
 
 ```
 
+#TODO: Explain output and log choice -> Erich
 
 Using log returns instead of simple (arithmetic) returns is a standard practice in financial econometrics and modeling.
 
@@ -144,6 +144,9 @@ summary_stats_long <- tibble::rownames_to_column(summary_stats_long, var = "Stat
 summary_stats_long
 
 ```
+#TODO: create nice table output and explain -> Daria
+
+
 ```{r}
 #TODO: Show them side-by-side 
 
@@ -151,19 +154,25 @@ summary_stats_long
 # ggplot(prices_link, aes(x = date, y = close_price)) +
 #   geom_line(color = "steelblue") +
 #   labs(title = "Daily Close Price", x = "Date", y = "Price")
-# 
+
 # # Plot returns
 # ggplot(prices_link, aes(x = date, y = log_return)) +
 #   geom_line(color = "darkred") +
 #   labs(title = "Daily Log Returns", x = "Date", y = "Log Return")
 
 ```
+
+#TODO: create plots and explain output -> Erich
+
+
 ```{r}
 
 # ACF plot of returns
 acf(na.omit(df_daily$log_return), main = "ACF of Daily Log Returns")
 
 ```
+#TODO: make nicer plot: -> Daria 
+
 Interpretation: 
 The autocorrelation function of daily log returns shows no statistically significant linear dependence, indicating that past returns do not linearly predict future returns. This supports the weak-form Efficient Market Hypothesis. However, this does not rule out the presence of exploitable patterns through non-linear or directional indicators. Therefore, we adopt a momentum-based strategy, using the sign of past multi-day returns to generate long or short trading signals.
 
@@ -215,13 +224,13 @@ df_daily <- df_daily %>%
 ```
 
 
-#TODO: insert standard model with momentum
+#TODO: insert standard model with momentum -> Erich
 ```{r, include = FALSE}
-
+#return ~ momentum_7d
 ```
 
 
-#TODO: explain result of standard 7 day momentum strategy 
+#TODO: explain result of standard 7 day momentum strategy -> Laura 
 
 
 ## 4. Extension 
@@ -281,6 +290,10 @@ df_daily <- df_daily %>%
   
   
 ```
+
+
+
+#TODO: add ethereum data -> Erich
 
 
 ```{r, include = FALSE}
@@ -347,10 +360,10 @@ model_extended <- lm(target_return ~
 summary(model_extended)
 
 ```
-#TODO: generate nicer latex table output of the regression results
+#TODO: generate nicer latex table output of the regression results -> Daria
 
 
-#TODO: Description and interpretation of output
+#TODO: Description and interpretation of output -> Laura 
 
 
 
@@ -560,26 +573,27 @@ o Hit rate (how often you correctly predict direction)
 ```
 
 
+#TODO: include Transaction fees as extra path 
 
 ```{r, include = FALSE}
 
 #Performance Comparison Momentum 7-day and buy-hold
 
-# Cumulative returns
-# df_daily <- df_daily %>%
-#   mutate(
-#     cum_ret_strategy = cumsum(coalesce(strategy_return, 0)),
-#     cum_ret_bh = cumsum(coalesce(log_return, 0))
-#   )
-# 
-# # Plot
-# library(ggplot2)
-# ggplot(df_daily, aes(x = date)) +
-#   geom_line(aes(y = cum_ret_strategy, color = "Strategy")) +
-#   geom_line(aes(y = cum_ret_bh, color = "Buy & Hold")) +
-#   labs(title = "7-Day Momentum Strategy vs Buy-and-Hold",
-#        x = "Date", y = "Cumulative Log Return") +
-#   scale_color_manual(values = c("Strategy" = "blue", "Buy & Hold" = "black"))
+#Cumulative returns
+df_daily <- df_daily %>%
+  mutate(
+    cum_ret_strategy = cumsum(coalesce(strategy_return, 0)),
+    cum_ret_bh = cumsum(coalesce(log_return, 0))
+  )
+
+# Plot
+library(ggplot2)
+ggplot(df_daily, aes(x = date)) +
+  geom_line(aes(y = cum_ret_strategy, color = "Strategy")) +
+  geom_line(aes(y = cum_ret_bh, color = "Buy & Hold")) +
+  labs(title = "7-Day Momentum Strategy vs Buy-and-Hold",
+       x = "Date", y = "Cumulative Log Return") +
+  scale_color_manual(values = c("Strategy" = "blue", "Buy & Hold" = "black"))
 ```
 
 
