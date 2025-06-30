@@ -2,20 +2,22 @@
 title: "AMProject_Clean"
 author: "Laura Gullicksen, Erich Gozebina, Daria Palitzsch"
 date: "23/05/2025"
-output: 
+output:
+  html_document:
+    df_print: paged
   pdf_document:
     number_sections: false
 fontsize: 12pt
 geometry: margin=1in
 header-includes:
-  - \usepackage{titlesec}
-  - \titleformat{\section}{\Large\bfseries}{\thesection}{1em}{}
-  - \titleformat{\subsection}{\large\bfseries}{\thesubsection}{1em}{}
-  - \titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{1em}{}
-  - \usepackage{float}
-  - \usepackage{placeins}
-  - \FloatBarrier
-  - \usepackage{mdframed}
+- \usepackage{titlesec}
+- \titleformat{\section}{\Large\bfseries}{\thesection}{1em}{}
+- \titleformat{\subsection}{\large\bfseries}{\thesubsection}{1em}{}
+- \titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{1em}{}
+- \usepackage{float}
+- \usepackage{placeins}
+- \FloatBarrier
+- \usepackage{mdframed}
 ---
 
 ```{r setup, include=FALSE}
@@ -245,7 +247,11 @@ To enhance the predictive power of the benchmark model, we extend it by incorpor
   \item A 7-day rolling volatility measure,
   \item Technical indicators such as the 14-day Relative Strength Index (RSI), MACD value and histogram, Simple Moving Average difference, and Average True Range (ATR),
   \item Day-of-week dummy variables to capture potential calendar effects,
-  \item BTC-based predictors: daily BTC return, 7-day BTC momentum, and 7-day BTC volatility.
+  \item BTC-based predictors: daily BTC return, 7-day BTC momentum, and 7-day BTC volatility,
+  \item ETH-based predictors: daily ETH return, 7-day ETH momentum, and 7-day ETH volatility,
+  \item ETH trading volume: daily ETH volume return, 7-day ETH volume momentum, and 7-day ETH volume volatility,
+  \item ETH market capitalization: daily ETH market capitalization return, 7-day ETH market capitalization momentum, and 7-day ETH market capitalization volatility,
+  \item Ethereum gas fees: daily gas return, 7-day gas momentum, and 7-day gas volatility.
 \end{itemize}
 
 The extended predictive regression model is specified as:
@@ -264,7 +270,7 @@ r_{t+1} &:= \log\left(\frac{P_{t+1}}{P_t}\right) \quad \text{(one-day-ahead LINK
 \text{BTC Momentum}_t^{(7)} &:= \log\left(\frac{P^{\text{BTC}}_t}{P^{\text{BTC}}_{t-7}}\right) \\
 \text{BTC Volatility}_t^{(7)} &:= \text{std} \left( r^{\text{BTC}}_{t-6}, \ldots, r^{\text{BTC}}_t \right)
 \end{align*}
-
+The ETH-based predictors are constructed analogously to the BTC-based predictors.
 This model is estimated via Ordinary Least Squares (OLS) on the in-sample period. By incorporating this rich feature set, we aim to capture a range of return drivers including price trends, market overreaction, volatility clustering, inter-market dependencies, and behavioral biases tied to trading weekdays.
 
 
@@ -273,6 +279,11 @@ This model is estimated via Ordinary Least Squares (OLS) on the in-sample period
 
 # Source https://coinmarketcap.com/currencies/bitcoin/historical-data/
 own_btc_prices <- read.csv("data/pricedata/Daily_Bitcoin_Own.csv", sep = ";") 
+# Source https://coinmarketcap.com/currencies/ethereum/historical-data/
+own_eth_prices <- read.csv("data/pricedata/ETH_pricedata.csv", sep = ";")
+# Source https://etherscan.io/chart/gasprice
+own_eth_gas <- read.csv("data/pricedata/ETH_daily_gas.csv", sep = ",")
+
 
 own_btc_prices <- own_btc_prices %>% 
   mutate(date = as.Date(timestamp)) %>%
@@ -284,8 +295,43 @@ own_btc_prices <- own_btc_prices %>%
   ) %>%
   select(date, btc_return, btc_momentum_7d, btc_volatility_7d)
 
+own_eth_prices <- own_eth_prices %>%
+  mutate(date = as.POSIXct(timeClose, format = "%Y-%m-%d")) %>%
+  select(date, open, high, low, close, volume, marketCap) %>%
+  arrange(date) # sort from old to new
+
+own_eth_gas <- own_eth_gas %>% 
+  rename(date = Date.UTC., gas_wei = Value..Wei.)%>%
+  mutate(date = as.POSIXct(date, format = "%m/%d/%Y")) %>%
+  select(date, gas_wei) %>%
+  arrange(date) # sort from old to new
+
+eth_data <- own_eth_prices %>%  
+  left_join(own_eth_gas, by = "date") %>%
+  mutate(
+    fees_dollar <- gas_wei*10^-18*60000*close, #factor 60,000 for ERC20 token transfer
+    eth_return = log(close / lag(close)),
+    eth_momentum_7d = log(close / lag(close, 7)),
+    eth_volatility_7d = rollapply(log(close / lag(close)),
+                                  width = 7, FUN = sd, fill = NA, align = "right"),
+    eth_return_volume = log(volume / lag(volume)),
+    eth_momentum_7d_volume = log(volume / lag(volume, 7)),
+    eth_volatility_7d_volume = rollapply(log(volume / lag(volume)),
+                                  width = 7, FUN = sd, fill = NA, align = "right"),
+    eth_return_marketcap = log(marketCap / lag(marketCap)),
+    eth_momentum_7d_marketcap = log(marketCap / lag(marketCap, 7)),
+    eth_volatility_7d_marketcap = rollapply(log(marketCap / lag(marketCap)),
+                                  width = 7, FUN = sd, fill = NA, align = "right"),
+    eth_return_gas = log(gas_wei / lag(gas_wei)),
+    eth_momentum_7d_gas = log(gas_wei / lag(gas_wei, 7)),
+    eth_volatility_7d_gas = rollapply(log(gas_wei / lag(gas_wei)),
+                                  width = 7, FUN = sd, fill = NA, align = "right")
+  )
+
 df_daily <- df_daily %>%  
-   left_join(own_btc_prices, by = "date") 
+  left_join(own_btc_prices, by = "date")  %>%
+  left_join(eth_data, by = "date")
+  
 
   
   
@@ -353,7 +399,14 @@ model_extended <- lm(target_return ~
                             volatility_7d + rsi_14 + sma_diff + 
                             macd_val + macd_hist + atr_14 + 
                             monday + tuesday + wednesday + thursday + friday +
-                            btc_return + btc_momentum_7d + btc_volatility_7d,
+                            btc_return + btc_momentum_7d + btc_volatility_7d +
+                            eth_return + eth_momentum_7d + eth_volatility_7d +
+                            eth_return_volume + eth_momentum_7d_volume + 
+                            eth_volatility_7d_volume + 
+                            eth_return_marketcap + eth_momentum_7d_marketcap + 
+                            eth_volatility_7d_marketcap + 
+                            eth_return_gas + eth_momentum_7d_gas + 
+                            eth_volatility_7d_gas,
                      data = df_extended)
 
 # Step 3: Summary of model results
@@ -398,7 +451,12 @@ X <- model.matrix(target_return ~
                     volatility_7d + rsi_14 + sma_diff + 
                     macd_val + macd_hist + atr_14 + 
                     monday + tuesday + wednesday + thursday + friday +
-                    btc_return + btc_momentum_7d + btc_volatility_7d,
+                    btc_return + btc_momentum_7d + btc_volatility_7d +
+                    eth_return_volume + eth_momentum_7d_volume + 
+                    eth_volatility_7d_volume +
+                    eth_return_marketcap + eth_momentum_7d_marketcap + 
+                    eth_volatility_7d_marketcap +
+                    eth_return_gas + eth_momentum_7d_gas + eth_volatility_7d_gas,
                   data = df_extended)[, -1]  # remove intercept column
 y <- df_extended$target_return
 
