@@ -3,10 +3,10 @@ title: "AMProject_Clean"
 author: "Laura Gullicksen, Erich Gozebina, Daria Palitzsch"
 date: "23/05/2025"
 output:
-  html_document:
-    df_print: paged
   pdf_document:
     number_sections: false
+  html_document:
+    df_print: paged
 fontsize: 12pt
 geometry: margin=1in
 header-includes:
@@ -100,7 +100,7 @@ df_daily <- prices_link %>%
     log_return = log(close_price / lag(close_price)),
     log_open_return = log(open_price / lag(open_price)),
     log_high_return = log(high_price / lag(high_price)),
-    log_return_low_return = log(low_price / lag(low_price)) 
+    log_low_return = log(low_price / lag(low_price)) 
   )
 
 # View the result
@@ -108,17 +108,41 @@ head(df_daily)
 
 ```
 
-#TODO: Explain output and log choice -> Erich
 
-Using log returns instead of simple (arithmetic) returns is a standard practice in financial econometrics and modeling.
+```{r, include=TRUE}
+# Plot prices
+ggplot(df_daily) + aes(x=date, y=close_price) + 
+geom_line(color = "steelblue") + 
+labs(title = "Daily LINK Close Price in USD", 
+     xlab = "Date", 
+     ylab = "Close Price (USD)"
+     )
 
-- Log returns are more symmetrically distributed and are better approximated by a normal distribution, especially for small time intervals (e.g., hourly/daily). This makes them more suitable for:
-  - Linear models
-  - Hypothesis testing
-  - Machine learning regressors
-  
-- Because log returns are additive, they allow you to aggregate returns over multiple periods simply by summing simple return becomes undefined.
-Log return avoids this issue as long as prices are strictly positive, which is true for most financial assets (especially crypto).
+# Plot log returns
+ggplot(df_daily%>%drop_na()) + aes(x=date, y=log_return) +
+geom_point(color = "darkred") +
+labs(title = "Daily LINK Log Returns", xlab = "Date", ylab = "Log Return")
+```
+
+#DONE: Explain output and log choice -> Erich
+
+Having a first glance on the LINK's price data, we see that there is not much movement until 2020, followed by sharp increases by factor ten in the consecutive nine months. The price reaches its peak of over 50\$/LINK in May 2021. In the second half of 2021 until April 2022 the data shows volatile behavior but with significant decrease on average. A trendless period of relatively low volatility, starting in May 2022 and ending in October 2023, shows prices between 5 and 10\$/LINK. Finally, we observe another increase at the end of 2023 and beginning of 2024.
+
+Moving away from non-stationary price data to stationary log returns, we observe a higher dispersion in the earlier years, suggesting a higher volatility then. Furthermore, most of points cluster around zero, indicating that there is no significant long term drift. Outliers, both positive and negative, imply extreme relative price movements, especially in the earlier period. Another important insight is the changing variance since the density of the points increases in the second half of the time window.
+
+Why did we chose log returns over canonical (arithmetic) returns? Using log returns instead of canonical returns is a standard practice in financial econometrics and modeling. 
+
+\[
+\tilde{r}_t = \log(r_t + 1) = \log\left(\frac{p_t}{p_{t-1}}\right)
+\]
+
+The underlying reason is the assumption that prices of an financial asset are log-normally distributed. This is reasonable since the log-normal distribution does not allow for negative values, which is also true for most asset prices (particularly for crypto currencies). Moreover, historical data provides evidence that the log-normal distribution gives a good fit for the prices of many financial assets. In reverse, since the logarithm function amplifies returns that are close to -1 more than positive returns, log-returns are distributed more symmetrically than canonical returns and indeed follow a normal distribution. Additionally, if returns are small, log returns approximate canonical returns very well. For x close to zero, it holds that
+
+\[
+\log(x+1) \approx x.
+\]
+
+We can expect small returns since we shorten the considered time interval. Another important property is the additivity of log returns. It allows us to aggregate returns over multiple periods by summing up the pointwise log returns - a property that canonical returns miss. These properties make log returns more suitable for linear regression models, hypothesis testing, and machine learning regressors.
 
 
 ```{r}
@@ -147,24 +171,6 @@ summary_stats_long
 
 ```
 #TODO: create nice table output and explain -> Daria
-
-
-```{r}
-#TODO: Show them side-by-side 
-
-# Plot closing price
-# ggplot(prices_link, aes(x = date, y = close_price)) +
-#   geom_line(color = "steelblue") +
-#   labs(title = "Daily Close Price", x = "Date", y = "Price")
-
-# # Plot returns
-# ggplot(prices_link, aes(x = date, y = log_return)) +
-#   geom_line(color = "darkred") +
-#   labs(title = "Daily Log Returns", x = "Date", y = "Log Return")
-
-```
-
-#TODO: create plots and explain output -> Erich
 
 
 ```{r}
@@ -339,7 +345,7 @@ df_daily <- df_daily %>%
 
 
 
-#TODO: add ethereum data -> Erich
+#DONE: add ethereum data -> Erich
 
 
 ```{r, include = FALSE}
