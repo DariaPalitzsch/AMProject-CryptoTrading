@@ -126,7 +126,7 @@ df_daily <- prices_link %>%
   )
 
 # View the result
-head(df_daily)
+#head(df_daily)
 
 ```
 
