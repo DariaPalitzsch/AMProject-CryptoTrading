@@ -234,7 +234,9 @@ df_daily <- df_daily %>%
 
 #TODO: insert standard model with momentum -> Erich
 ```{r, include = FALSE}
-#return ~ momentum_7d
+#standard model with 7-day-momentum
+model_standard <- lm(strategy_return ~ momentum_7d, data = df_daily)
+summary(model_standard)
 ```
 
 
