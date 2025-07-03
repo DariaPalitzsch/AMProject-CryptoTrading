@@ -3,10 +3,10 @@ title: "AMProject_Clean"
 author: "Laura Gullicksen, Erich Gozebina, Daria Palitzsch"
 date: "23/05/2025"
 output:
-  html_document:
-    df_print: paged
   pdf_document:
     number_sections: false
+  html_document:
+    df_print: paged
   word_document: default
 fontsize: 12pt
 geometry: margin=1in
@@ -784,8 +784,120 @@ o Hit rate (how often you correctly predict direction)
 
 ```
 
+```{r, echo = FALSE}
 
-#TODO: include Transaction fees as extra path 
+#define a function to run the rolling out-of-sample lasso regression
+run_rolling_lasso <- function(df, y_var, window_size = 500, x_vars = NULL) {
+  # Drop rows where the target variable is NA
+  df <- df %>% filter(!is.na(.data[[y_var]]))
+  
+  # Automatically detect predictors if not provided
+  if (is.null(x_vars)) {
+    predictors <- setdiff(names(df), c("date", y_var))
+  } else {
+    predictors <- x_vars
+  }
+  
+  # Storage for predictions
+  predictions <- rep(NA, nrow(df))
+
+  # Rolling window loop
+  for (i in seq(window_size + 1, nrow(df))) {
+    # Get training and test data
+    train_data <- df[(i - window_size):(i - 1), ]
+    test_data <- df[i, ]
+
+    # Extract X and y matrices
+    x_train <- as.matrix(train_data[, predictors])
+    y_train <- train_data[[y_var]]
+
+    x_test <- as.matrix(test_data[, predictors])
+
+    # Fit LASSO model
+    cv_fit <- cv.glmnet(x_train, y_train, alpha = 1)
+    best_lambda <- cv_fit$lambda.min
+    # Refit LASSO model using best lambda
+    model <- glmnet(x_train, y_train, alpha = 1, lambda = best_lambda)
+
+   # Predict for one-step ahead
+    predictions[i] <- predict(model, newx = x_test)
+  }
+
+  # Return tibble with actual vs predicted
+  tibble(
+    date = df$date,
+    actual = df[[y_var]],
+    predicted = predictions
+  )
+}
+
+x_vars <- colnames(df_extended)[!(colnames(df_extended) %in% c("date", "target_return"))]
+
+# Keep only numeric predictors
+x_vars_numeric <- x_vars[sapply(df_extended[, x_vars], is.numeric)]
+
+# Filter for complete cases in x_vars_numeric + target_return
+df_clean <- df_extended %>%
+  dplyr::select(date, target_return, all_of(x_vars_numeric)) %>%
+  filter(complete.cases(.))
+
+#For each out-of-sample prediction, the model is trained on the previous 500 observations
+results <- run_rolling_lasso(
+  df = df_clean,
+  y_var = "target_return",
+  window_size = 500,
+  x_vars = colnames(df_clean)[!(colnames(df_clean) %in% c("date", "target_return"))]
+)
+
+```
+
+
+
+```{r, echo = FALSE}
+# Make sure 'results' has no NAs in actual or predicted
+results_clean <- results %>% filter(!is.na(actual), !is.na(predicted))
+
+# Compute performance metrics
+r_squared <- cor(results_clean$actual, results_clean$predicted)^2
+mse <- mean((results_clean$actual - results_clean$predicted)^2)
+directional_accuracy <- mean(sign(results_clean$actual) == sign(results_clean$predicted))
+
+# Compute Sharpe Ratios (daily returns assumed)
+sharpe_ratio_actual <- mean(results_clean$actual) / sd(results_clean$actual) * sqrt(252)
+sharpe_ratio_pred <- mean(results_clean$predicted) / sd(results_clean$predicted) * sqrt(252)
+
+# Print metrics
+performance_metrics <- tibble(
+  `R-squared` = r_squared,
+  `MSE` = mse,
+  `Directional Accuracy` = directional_accuracy,
+  `Sharpe Ratio (Actual)` = sharpe_ratio_actual,
+  `Sharpe Ratio (Predicted)` = sharpe_ratio_pred
+)
+
+performance_metrics %>%
+  kable("latex", booktabs = TRUE, digits = 4,
+        caption = "Table 5: Out-of-Sample Performance Metrics of LASSO Model") %>%
+  kable_styling(latex_options = c("striped", "hold_position", "scale_down")) %>%
+  row_spec(0, bold = TRUE)
+
+
+```
+```{r, echo = FALSE}
+# Plot: Predicted vs Actual
+# ggplot(results_clean, aes(x = actual, y = predicted)) +
+#   geom_point(alpha = 0.4, color = "steelblue") +
+#   geom_smooth(method = "lm", se = FALSE, color = "darkred") +
+#   labs(
+#     title = "Predicted vs. Actual Returns",
+#     x = "Actual Returns",
+#     y = "Predicted Returns"
+#   ) +
+#   theme_minimal()
+```
+
+
+add transaction fees as extra path 
 
 ```{r, echo = FALSE}
 
@@ -799,7 +911,6 @@ df_daily <- df_daily %>%
   )
 
 # Plot
-library(ggplot2)
 ggplot(df_daily, aes(x = date)) +
   geom_line(aes(y = cum_ret_strategy, color = "Strategy")) +
   geom_line(aes(y = cum_ret_bh, color = "Buy & Hold")) +
@@ -808,6 +919,38 @@ ggplot(df_daily, aes(x = date)) +
   scale_color_manual(values = c("Strategy" = "blue", "Buy & Hold" = "black"))
 ```
 
+```{r, echo = FALSE}
+
+df_extended$lasso_pred <- results$predicted
+
+df_extended <- df_extended %>%
+  mutate(
+    lasso_signal = ifelse(lasso_pred > 0, 1, -1),  # buy/sell signal
+    lasso_strategy_return = lasso_signal * target_return  # realized return based on prediction
+  )
+
+df_extended <- df_extended %>%
+  mutate(
+    cum_ret_lasso = cumsum(coalesce(lasso_strategy_return, 0)),
+    cum_ret_momentum = cumsum(coalesce(strategy_return, 0)),  # from your existing momentum signal
+    cum_ret_bh = cumsum(coalesce(log_return, 0))  # buy-and-hold
+  )
+
+library(dplyr)
+library(ggplot2)
+
+ggplot(df_extended, aes(x = date)) +
+  geom_line(aes(y = cum_ret_momentum, color = "7-Day Momentum")) +
+  geom_line(aes(y = cum_ret_bh, color = "Buy & Hold")) +
+  geom_line(aes(y = cum_ret_lasso, color = "LASSO Strategy")) +
+  labs(title = "Cumulative Log Returns: LASSO vs Momentum vs Buy & Hold",
+       x = "Date", y = "Cumulative Log Return") +
+  scale_color_manual(values = c("7-Day Momentum" = "blue",
+                                "Buy & Hold" = "black",
+                                "LASSO Strategy" = "darkred")) +
+  theme_minimal()
+
+```
 
 
 ## 6. Conclusion
