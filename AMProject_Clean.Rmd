@@ -3,10 +3,10 @@ title: "AMProject_Clean"
 author: "Laura Gullicksen, Erich Gozebina, Daria Palitzsch"
 date: "23/05/2025"
 output:
-  pdf_document:
-    number_sections: false
   html_document:
     df_print: paged
+  pdf_document:
+    number_sections: false
   word_document: default
 fontsize: 12pt
 geometry: margin=1in
@@ -85,7 +85,7 @@ The raw dataset provides CHAINLINK price data at \textit{hourly frequency}. Whil
 
 4. **Interpretability and Robustness**: Daily returns are more interpretable and robust across backtests. Most financial and technical indicators (e.g., RSI, MACD, SMA) are commonly applied on daily charts. 
 
-Our strategy issues long/short signals based on the past 7-day return of CHAINLINK, i.e., 
+Our strategy issues long/short signals based on the past 7-day log return of CHAINLINK, i.e., 
 
 \[
 \text{Momentum}_t^{(7)} = \log\left(\frac{P_t}{P_{t-7}}\right)
@@ -136,8 +136,8 @@ df_daily <- prices_link %>%
 ggplot(df_daily) + aes(x=date, y=close_price) + 
 geom_line(color = "steelblue") + 
 labs(title = "Daily LINK Close Price in USD", 
-     xlab = "Date", 
-     ylab = "Close Price (USD)"
+     x = "Date", 
+     y = "Close Price (USD)"
      )
 
 # Plot log returns
@@ -252,8 +252,9 @@ The autocorrelation function (ACF) of daily log returns shows no statistically s
 
 ## 3. Standard Model 
 
-#Momentum Signal Strategy
+We develop a basic model that will serve as a starting point for an extended model. Our first approach to predict future returns is a simple linear regression. Why linear regression? First, this technique is the underlying mechanism of many advanced models that are often generalizations of the linear case. Therefore, it is a good fit for a starting point. In general, linear regression aims to identify linear relationships between input data and the target dimension. In our case the input data is price data, trading volume, market capitalization, and every predictor that is derived from those - returns for instance. The target dimension that we are going to predict is the return of the next day. The simplicity of linear mappings make results easy to interpret, whereby the model still remains powerful since many observed relationships are indeed of linear nature. Moreover, linear regression indicates the strength of those linear ties what makes it a helpful tool for decision making.
 
+**7-Day Momentum Signal Strategy**
 We define the 7-day momentum as the log return over the past 7 days:
 \[
 \text{Momentum}_t = \log\left(\frac{P_t}{P_{t-7}}\right)
