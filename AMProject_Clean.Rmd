@@ -283,27 +283,44 @@ where \( r_{t+1} = \log\left(\frac{P_{t+1}}{P_t}\right) \) is the daily log retu
 df_daily <- df_daily %>%
   mutate(
     momentum_7d = log(close_price / lag(close_price, 7)),
+    target_return = lead(log_return),
     signal = case_when(
-      momentum_7d > 0 ~ 1,   # Long
-      momentum_7d < 0 ~ -1,  # Short
+      lead(log_return) > 0 ~ 1,   # Long
+      lead(log_return) < 0 ~ -1,  # Short
       TRUE ~ 0               # No signal
     )
   )
 
 # 2. Shift signal forward by one day to avoid look-ahead bias
-df_daily <- df_daily %>%
-  mutate(
-    signal_lagged = lag(signal),
-    strategy_return = signal_lagged * log_return
-  )
+# df_daily <- df_daily %>%
+#   mutate(
+#     signal_lagged = lag(signal),
+#     strategy_return = signal_lagged * log_return
+#   )
 
 ```
 
 
 #TODO: insert standard model with momentum -> Erich
+**Regress target return on 7-day momentum**
 ```{r results='asis', echo = FALSE}
+# split training and test data
+df_stdmodel <- df_daily %>% drop_na()
+
+# Get training and test data (4:1 split)
+df_train_stdmodel <- df_stdmodel[1:(floor(nrow(df_stdmodel)*0.8)),]
+df_test_stdmodel <- df_stdmodel[floor((nrow(df_stdmodel)*0.8) + 1):nrow(df_stdmodel),]
+
+
+# Extract X and Y vectors
+x_train_stdmodel <- df_train_stdmodel$momentum_7d
+y_train_stdmodel <- df_train_stdmodel$target_return
+
+x_test_stdmodel <- df_test_stdmodel$momentum_7d
+
+
 #standard model with 7-day-momentum
-model_standard <- lm(strategy_return ~ momentum_7d, data = df_daily)
+model_standard <- lm(target_return ~ momentum_7d, data = df_train_stdmodel)
 
 summary(model_standard)
 
@@ -322,7 +339,7 @@ stargazer(model_standard,
 
 #TODO: explain result of standard 7 day momentum strategy -> Laura 
 # Draft from Erich:
-The linear regression results in an estimation for the intercept of 0.002 having a p-value of 0.0999 and a slope of 0.005 having a p-value of 0.5123. Since the p-value for the slope clearly exceeds 0.05 (the threshold, which is commonly used for acceptance), we can not conclude a linear relation between the 7-day momentum and the future day return. Actually, this aligns with our finding in the ACF analysis, where no linear dependency between a lag of 7 days and the future day return was indicated. Thus, this result calls for an extended approach of future return prediction.
+The linear regression results in an estimation for the intercept of 0.001 having a p-value of 0.427 and a slope of 0.002 having a p-value of 0.806 Since the p-value for the slope clearly exceeds 0.05 (the threshold, which is commonly used for acceptance), we can not conclude a linear relation between the 7-day momentum and the future day return. Actually, this aligns with our finding in the ACF analysis, where no linear dependency between a lag of 7 days and the future day return was indicated. Thus, this result calls for an extended approach of future return prediction.
 
 
 ## 4. Extension 
@@ -476,11 +493,18 @@ df_extended <- df_daily %>%
          wednesday = ifelse(weekday == "Wed", 1, 0),
          thursday = ifelse(weekday == "Thu", 1, 0),
          friday = ifelse(weekday == "Fri", 1, 0),
-
-    # Target: next day's return
-    target_return = lead(log_return, 1)
   ) %>%
   drop_na()  # Remove rows with missing values
+
+```
+
+
+Regress target return on all features
+```{r, echo = FALSE}
+# Get training and test data (4:1 split)
+df_train_extended <- df_extended[1:(floor(nrow(df_extended)*0.8)),]
+df_test_extended <- df_extended[floor((nrow(df_extended)*0.8) + 1):nrow(df_extended),]
+
 
 # Step 2: Fit the extended linear model
 model_extended <- lm(target_return ~ 
@@ -497,12 +521,16 @@ model_extended <- lm(target_return ~
                             eth_volatility_7d_marketcap + 
                             eth_return_gas + eth_momentum_7d_gas + 
                             eth_volatility_7d_gas,
-                     data = df_extended)
+                     data = df_train_extended)
 
 # Step 3: Summary of model results
 summary(model_extended)
 
+
 ```
+
+
+
 
 ```{r results='asis', echo=FALSE}
 stargazer(model_extended,
@@ -571,8 +599,8 @@ X <- model.matrix(target_return ~
                     eth_return_marketcap + eth_momentum_7d_marketcap + 
                     eth_volatility_7d_marketcap +
                     eth_return_gas + eth_momentum_7d_gas + eth_volatility_7d_gas,
-                  data = df_extended)[, -1]  # remove intercept column
-y <- df_extended$target_return
+                  data = df_train_extended)[, -1]  # remove intercept column
+y <- df_train_extended$target_return
 
 # Step 2: Run cross-validated Lasso
 set.seed(42)
@@ -635,11 +663,11 @@ kable(lasso_table, format = "latex", booktabs = TRUE,
 
 The LASSO regression identified two non-zero predictors for explaining Chainlink (LINK) returns:
 
-1. Bitcoin Daily Return (Coefficient: -0.9374): This variable has a large and negative coefficient, indicating that when Bitcoin’s daily return increases by 1 unit (in our scaled units), the predicted return of our LINK-based trading strategy decreases by approximately 0.9374 units, all else equal. This suggests a strong inverse relationship between BTC movements and our strategy, potentially due to hedging behavior or negative spillovers.
+1. Bitcoin Daily Return (Coefficient: -0.9552): This variable has a large and negative coefficient, indicating that when Bitcoin’s daily return increases by 1 unit (in our scaled units), the predicted return of our LINK-based trading strategy decreases by approximately 0.9552 units, all else equal. This suggests a strong inverse relationship between BTC movements and our strategy, potentially due to hedging behavior or negative spillovers.
 
-2. Ethereum 7-Day Volume Momentum (Coefficient: 0.0008): This predictor captures short-term trends in Ethereum’s trading volume. The positive but small coefficient implies that higher recent momentum in ETH trading volume is weakly associated with increased LINK returns, possibly due to spillover effects from rising market activity in related tokens.
+2. Ethereum 7-Day Volume Momentum (Coefficient: 0.0019): This predictor captures short-term trends in Ethereum’s trading volume. The positive but small coefficient implies that higher recent momentum in ETH trading volume is weakly associated with increased LINK returns, possibly due to spillover effects from rising market activity in related tokens.
 
-3. Intercept (Coefficient: 0.0011): The intercept represents the model’s baseline prediction when all predictors are zero. Here, it suggests a small positive base return, though in practice this often has less interpretive value than the covariates.
+3. Intercept (Coefficient: 0.0014): The intercept represents the model’s baseline prediction when all predictors are zero. Here, it suggests a small positive base return, though in practice this often has less interpretive value than the covariates.
 
 
 ## 5. Forecasting & Backtesting
@@ -677,10 +705,11 @@ These metrics are computed for all three models:
 
 ```{r, echo = FALSE}
 # --- Benchmark model (already estimated) ---
-model_benchmark <- lm(target_return ~ momentum_7d, data = df_extended)
+
+model_benchmark <- lm(target_return ~ momentum_7d, data = df_train_extended)
 
 # --- Predictions ---
-df_extended <- df_extended %>%
+df_train_extended <- df_train_extended %>%
   mutate(
     pred_benchmark = predict(model_benchmark),
     pred_extended = predict(model_extended),
@@ -700,14 +729,14 @@ acc <- function(pred, actual) mean(sign(pred) == sign(actual))
 results_is <- tibble(
   Model = c("Benchmark", "Extended", "Lasso"),
   MSE = c(
-    mse(df_extended$pred_benchmark, df_extended$target_return),
-    mse(df_extended$pred_extended, df_extended$target_return),
-    mse(df_extended$pred_lasso, df_extended$target_return)
+    mse(df_train_extended$pred_benchmark, df_train_extended$target_return),
+    mse(df_train_extended$pred_extended, df_train_extended$target_return),
+    mse(df_train_extended$pred_lasso, df_train_extended$target_return)
   ),
   Directional_Accuracy = c(
-    acc(df_extended$pred_benchmark, df_extended$target_return),
-    acc(df_extended$pred_extended, df_extended$target_return),
-    acc(df_extended$pred_lasso, df_extended$target_return)
+    acc(df_train_extended$pred_benchmark, df_train_extended$target_return),
+    acc(df_train_extended$pred_extended, df_train_extended$target_return),
+    acc(df_train_extended$pred_lasso, df_train_extended$target_return)
   ),
   Adj_R2 = c(
     summary(model_benchmark)$adj.r.squared,
