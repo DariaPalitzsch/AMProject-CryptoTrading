@@ -305,7 +305,7 @@ df_daily <- df_daily %>%
 #standard model with 7-day-momentum
 model_standard <- lm(strategy_return ~ momentum_7d, data = df_daily)
 
-#summary(model_standard)
+summary(model_standard)
 
 stargazer(model_standard,
           type = "latex",
@@ -321,6 +321,8 @@ stargazer(model_standard,
 
 
 #TODO: explain result of standard 7 day momentum strategy -> Laura 
+# Draft from Erich:
+The linear regression results in an estimation for the intercept of 0.002 having a p-value of 0.0999 and a slope of 0.005 having a p-value of 0.5123. Since the p-value for the slope clearly exceeds 0.05 (the threshold, which is commonly used for acceptance), we can not conclude a linear relation between the 7-day momentum and the future day return. Actually, this aligns with our finding in the ACF analysis, where no linear dependency between a lag of 7 days and the future day return was indicated. Thus, this result calls for an extended approach of future return prediction.
 
 
 ## 4. Extension 
@@ -359,7 +361,7 @@ r_{t+1} &:= \log\left(\frac{P_{t+1}}{P_t}\right) \quad \text{(one-day-ahead LINK
 \text{BTC Volatility}_t^{(7)} &:= \text{std} \left( r^{\text{BTC}}_{t-6}, \ldots, r^{\text{BTC}}_t \right)
 \end{align*}
 The ETH-based predictors are constructed analogously to the BTC-based predictors.
-This model is estimated via Ordinary Least Squares (OLS) on the in-sample period. By incorporating this rich feature set, we aim to capture a range of return drivers including price trends, market overreaction, volatility clustering, inter-market dependencies, and behavioral biases tied to trading weekdays.
+The parametrization of this model is estimated via Ordinary Least Squares (OLS) on the in-sample period. By incorporating this rich feature set, we aim to capture a range of return drivers including price trends, market overreaction, volatility clustering, inter-market dependencies, and behavioral biases tied to trading weekdays.
 
 
 ```{r, echo = FALSE}
@@ -498,7 +500,7 @@ model_extended <- lm(target_return ~
                      data = df_extended)
 
 # Step 3: Summary of model results
-#summary(model_extended)
+summary(model_extended)
 
 ```
 
@@ -534,7 +536,7 @@ stargazer(model_extended,
 
 **Lasso Model**
 
-To prevent overfitting and perform automatic variable selection, we extend our linear modeling approach using the Lasso (Least Absolute Shrinkage and Selection Operator). The Lasso adds a penalty term to the standard OLS loss function, shrinking some coefficient estimates toward zero. This results in a sparse model that may improve predictive performance, particularly when dealing with multiple correlated predictors.
+To prevent overfitting and perform automatic variable selection, we extend our linear modeling approach using the Lasso (Least Absolute Shrinkage and Selection Operator). The Lasso adds a penalty term to the standard OLS loss function, shrinking some coefficient estimates toward zero. This results in a sparse model that may improve predictive performance, particularly when dealing with multiple correlated predictors. Furthermore, reducing the number of relevant features allows for a better interpretation of simulation results.
 
 The Lasso estimator is defined as the solution to the following optimization problem:
 
@@ -601,7 +603,7 @@ Given this optimal lambda, we now run the LASSO regression, including all variab
 model_lasso <- glmnet(X, y, alpha = 1, lambda = best_lambda)
 
 # Show coefficients
-#coef(model_lasso)
+coef(model_lasso)
 
 
 coef_df <- as.matrix(coef(model_lasso))
