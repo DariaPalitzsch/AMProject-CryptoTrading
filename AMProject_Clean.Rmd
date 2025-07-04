@@ -66,6 +66,9 @@ Sys.setenv(TZ='UCT') #set timezone!
 
 ```
 
+# TODO:
+- Begründung des Schrittes von LM zu Lasso (Varianzreduktion, Korrelationseffecte, etc.)
+
 
 ## 1. Introduction
 
@@ -754,6 +757,7 @@ print(results_is)
 
 
 **Out-of-sample testing:**
+# TODO: Verlauf des MSE im Vergleich von IS zu OOS
 
 #TODO: review code, does not work at the moment 
 
