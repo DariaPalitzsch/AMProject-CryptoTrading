@@ -770,6 +770,81 @@ print(results_is)
 
 
 **Out-of-sample testing:**
+
+After performing the in-sample analysis, we now test our LASSO model Out-Of-Sample on the test data set: 
+
+```{r, echo = FALSE}
+
+X_test <- model.matrix(target_return ~ 
+  momentum_3d + momentum_7d + momentum_14d + 
+  return_lag1 + return_lag2 + 
+  volatility_7d + rsi_14 + sma_diff + 
+  macd_val + macd_hist + atr_14 + 
+  monday + tuesday + wednesday + thursday + friday +
+  btc_return + btc_momentum_7d + btc_volatility_7d +
+  eth_return_volume + eth_momentum_7d_volume + 
+  eth_volatility_7d_volume +
+  eth_return_marketcap + eth_momentum_7d_marketcap + 
+  eth_volatility_7d_marketcap +
+  eth_return_gas + eth_momentum_7d_gas + eth_volatility_7d_gas,
+  data = df_test_extended)[, -1] 
+
+df_test_extended <- df_test_extended %>%
+  mutate(
+    pred_benchmark = predict(model_benchmark, newdata = df_test_extended),
+    pred_extended  = predict(model_extended, newdata = df_test_extended),
+    pred_lasso     = as.numeric(predict(model_lasso, newx = X_test)),
+
+    # Directional accuracy
+    dir_true       = sign(target_return),
+    dir_benchmark  = sign(pred_benchmark),
+    dir_extended   = sign(pred_extended),
+    dir_lasso      = sign(pred_lasso)
+  )
+
+mean_train_return <- mean(df_train_extended$target_return, na.rm = TRUE)
+
+# Define R²_OS function
+r2_os <- function(actual, predicted, mean_train) {
+  ss_res <- sum((actual - predicted)^2, na.rm = TRUE)
+  ss_base <- sum((actual - mean_train)^2, na.rm = TRUE)
+  1 - ss_res / ss_base
+}
+
+
+results_oos <- tibble(
+  Model = c("Benchmark", "Extended", "Lasso"),
+  MSE = c(
+    mse(df_test_extended$pred_benchmark, df_test_extended$target_return),
+    mse(df_test_extended$pred_extended, df_test_extended$target_return),
+    mse(df_test_extended$pred_lasso, df_test_extended$target_return)
+  ),
+  Directional_Accuracy = c(
+    acc(df_test_extended$pred_benchmark, df_test_extended$target_return),
+    acc(df_test_extended$pred_extended, df_test_extended$target_return),
+    acc(df_test_extended$pred_lasso, df_test_extended$target_return)
+  )
+)
+
+# Add R2_OS column to results
+results_oos <- results_oos %>%
+  mutate(
+    R2_OS = c(
+      r2_os(df_test_extended$target_return, df_test_extended$pred_benchmark, mean_train_return),
+      r2_os(df_test_extended$target_return, df_test_extended$pred_extended, mean_train_return),
+      r2_os(df_test_extended$target_return, df_test_extended$pred_lasso, mean_train_return)
+    )
+  )
+
+#results_oos
+
+results_oos %>%
+  kable(format = "latex", digits = 4, caption = "Out-of-Sample Model Evaluation") %>%
+  kable_styling(latex_options = c("hold_position", "striped"))
+
+```
+
+
 # TODO: Verlauf des MSE im Vergleich von IS zu OOS
 
 #TODO: review code, does not work at the moment 
