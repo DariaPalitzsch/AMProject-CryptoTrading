@@ -54,7 +54,7 @@ library(glmnet)
 # library(Quandl)
 library(kableExtra)
 # library(flextable)
-# library(gridExtra)
+library(gridExtra)
 # library(tinytex)
 library(TTR)
 
@@ -139,36 +139,44 @@ df_daily <- prices_link %>%
 ```
 
 
-```{r, echo=FALSE}
+```{r arranged_plots, fig.cap = "Close Price and Log Return of LINK", fig.align = "center", echo = FALSE, message = FALSE, warning = FALSE}
 # Plot prices
-ggplot(df_daily) + aes(x=date, y=close_price) + 
-geom_line(color = "steelblue") + 
-labs(title = "Daily LINK Close Price in USD", 
-     x = "Date", 
-     y = "Close Price (USD)"
-     )
+plot_1 <- ggplot(df_daily) + aes(x=date, y=close_price) + 
+  geom_line(color = "steelblue") + 
+  labs(title = "Daily LINK Close Price in USD", 
+       x = "Date", 
+       y = "Close Price (USD)"
+       ) +
+  scale_x_date(date_labels = "%Y", date_breaks = "1 year") +
+  theme_minimal(base_size = 13)
 
 # Plot log returns
 # ggplot(df_daily%>%drop_na()) + aes(x=date, y=log_return) +
 # geom_point(color = "darkred") +
 # labs(title = "Daily LINK Log Returns", xlab = "Date", ylab = "Log Return")
 
-ggplot(df_daily, aes(x = date, y = log_return)) +
+plot_2 <- ggplot(df_daily %>% drop_na(), aes(x = date, y = log_return)) +
   geom_point(color = "#990000", size = 1.5, alpha = 0.7) +  # smaller, translucent points
   labs(
     title = "Daily Log Returns of Chainlink",
-    subtitle = "Time series plot from 2017 to 2024",
+    #subtitle = "Time series plot from 2017 to 2024",
     x = "Date",
     y = "Log Return"
   ) +
   scale_x_date(date_labels = "%Y", date_breaks = "1 year") +
-  theme_minimal(base_size = 13) +
-  theme(
-    plot.title = element_text(face = "bold"),
-    plot.subtitle = element_text(margin = margin(b = 10)),
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    panel.grid.minor = element_blank()
-  )
+  theme_minimal(base_size = 13)
+  # theme(
+  #   #plot.title = element_text(face = "bold"),
+  #   plot.subtitle = element_text(margin = margin(b = 10)),
+  #   axis.text.x = element_text(angle = 45, hjust = 1),
+  #   panel.grid.minor = element_blank()
+  # )
+
+#show the plots side-by-side
+
+grid.arrange(plot_1, plot_2, nrow = 1, ncol = 2)
+
+
 ```
 
 #DONE: Explain output and log choice -> Erich
@@ -291,12 +299,12 @@ where \( r_{t+1} = \log\left(\frac{P_{t+1}}{P_t}\right) \) is the daily log retu
 df_daily <- df_daily %>%
   mutate(
     momentum_7d = log(close_price / lag(close_price, 7)),
-    target_return = lead(log_return),
-    signal = case_when(
-      lead(log_return) > 0 ~ 1,   # Long
-      lead(log_return) < 0 ~ -1,  # Short
-      TRUE ~ 0               # No signal
-    )
+    target_return = lead(log_return)#,
+    # signal = case_when(
+    #   lead(log_return) > 0 ~ 1,   # Long
+    #   lead(log_return) < 0 ~ -1,  # Short
+    #   TRUE ~ 0               # No signal
+    # )
   )
 
 # 2. Shift signal forward by one day to avoid look-ahead bias
@@ -330,7 +338,7 @@ x_test_stdmodel <- df_test_stdmodel$momentum_7d
 #standard model with 7-day-momentum
 model_standard <- lm(target_return ~ momentum_7d, data = df_train_stdmodel)
 
-summary(model_standard)
+#summary(model_standard)
 
 stargazer(model_standard,
           type = "latex",
@@ -532,7 +540,7 @@ model_extended <- lm(target_return ~
                      data = df_train_extended)
 
 # Step 3: Summary of model results
-summary(model_extended)
+#summary(model_extended)
 
 
 ```
@@ -639,7 +647,7 @@ Given this optimal lambda, we now run the LASSO regression, including all variab
 model_lasso <- glmnet(X, y, alpha = 1, lambda = best_lambda)
 
 # Show coefficients
-coef(model_lasso)
+#coef(model_lasso)
 
 
 coef_df <- as.matrix(coef(model_lasso))
@@ -944,51 +952,51 @@ add transaction fees as extra path
 #Performance Comparison Momentum 7-day and buy-hold
 
 #Cumulative returns
-df_daily <- df_daily %>%
-  mutate(
-    cum_ret_strategy = cumsum(coalesce(strategy_return, 0)),
-    cum_ret_bh = cumsum(coalesce(log_return, 0))
-  )
-
-# Plot
-ggplot(df_daily, aes(x = date)) +
-  geom_line(aes(y = cum_ret_strategy, color = "Strategy")) +
-  geom_line(aes(y = cum_ret_bh, color = "Buy & Hold")) +
-  labs(title = "7-Day Momentum Strategy vs Buy-and-Hold",
-       x = "Date", y = "Cumulative Log Return") +
-  scale_color_manual(values = c("Strategy" = "blue", "Buy & Hold" = "black"))
+# df_daily <- df_daily %>%
+#   mutate(
+#     cum_ret_strategy = cumsum(coalesce(strategy_return, 0)),
+#     cum_ret_bh = cumsum(coalesce(log_return, 0))
+#   )
+# 
+# # Plot
+# ggplot(df_daily, aes(x = date)) +
+#   geom_line(aes(y = cum_ret_strategy, color = "Strategy")) +
+#   geom_line(aes(y = cum_ret_bh, color = "Buy & Hold")) +
+#   labs(title = "7-Day Momentum Strategy vs Buy-and-Hold",
+#        x = "Date", y = "Cumulative Log Return") +
+#   scale_color_manual(values = c("Strategy" = "blue", "Buy & Hold" = "black"))
 ```
 
 ```{r, echo = FALSE}
-
-df_extended$lasso_pred <- results$predicted
-
-df_extended <- df_extended %>%
-  mutate(
-    lasso_signal = ifelse(lasso_pred > 0, 1, -1),  # buy/sell signal
-    lasso_strategy_return = lasso_signal * target_return  # realized return based on prediction
-  )
-
-df_extended <- df_extended %>%
-  mutate(
-    cum_ret_lasso = cumsum(coalesce(lasso_strategy_return, 0)),
-    cum_ret_momentum = cumsum(coalesce(strategy_return, 0)),  # from your existing momentum signal
-    cum_ret_bh = cumsum(coalesce(log_return, 0))  # buy-and-hold
-  )
-
-library(dplyr)
-library(ggplot2)
-
-ggplot(df_extended, aes(x = date)) +
-  geom_line(aes(y = cum_ret_momentum, color = "7-Day Momentum")) +
-  geom_line(aes(y = cum_ret_bh, color = "Buy & Hold")) +
-  geom_line(aes(y = cum_ret_lasso, color = "LASSO Strategy")) +
-  labs(title = "Cumulative Log Returns: LASSO vs Momentum vs Buy & Hold",
-       x = "Date", y = "Cumulative Log Return") +
-  scale_color_manual(values = c("7-Day Momentum" = "blue",
-                                "Buy & Hold" = "black",
-                                "LASSO Strategy" = "darkred")) +
-  theme_minimal()
+# 
+# df_extended$lasso_pred <- results$predicted
+# 
+# df_extended <- df_extended %>%
+#   mutate(
+#     lasso_signal = ifelse(lasso_pred > 0, 1, -1),  # buy/sell signal
+#     lasso_strategy_return = lasso_signal * target_return  # realized return based on prediction
+#   )
+# 
+# df_extended <- df_extended %>%
+#   mutate(
+#     cum_ret_lasso = cumsum(coalesce(lasso_strategy_return, 0)),
+#     cum_ret_momentum = cumsum(coalesce(strategy_return, 0)),  # from your existing momentum signal
+#     cum_ret_bh = cumsum(coalesce(log_return, 0))  # buy-and-hold
+#   )
+# 
+# library(dplyr)
+# library(ggplot2)
+# 
+# ggplot(df_extended, aes(x = date)) +
+#   geom_line(aes(y = cum_ret_momentum, color = "7-Day Momentum")) +
+#   geom_line(aes(y = cum_ret_bh, color = "Buy & Hold")) +
+#   geom_line(aes(y = cum_ret_lasso, color = "LASSO Strategy")) +
+#   labs(title = "Cumulative Log Returns: LASSO vs Momentum vs Buy & Hold",
+#        x = "Date", y = "Cumulative Log Return") +
+#   scale_color_manual(values = c("7-Day Momentum" = "blue",
+#                                 "Buy & Hold" = "black",
+#                                 "LASSO Strategy" = "darkred")) +
+#   theme_minimal()
 
 ```
 
