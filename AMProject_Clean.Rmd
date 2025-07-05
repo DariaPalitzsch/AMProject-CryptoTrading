@@ -432,7 +432,7 @@ own_eth_gas <- own_eth_gas %>%
 eth_data <- own_eth_prices %>%  
   left_join(own_eth_gas, by = "date") %>%
   mutate(
-    fees_dollar <- gas_wei*10^-18*60000*close, #factor 60,000 for ERC20 token transfer
+    fees_dollar = gas_wei*10^-18*60000*close, #factor 60,000 for ERC20 token transfer
     eth_return = log(close / lag(close)),
     eth_momentum_7d = log(close / lag(close, 7)),
     eth_volatility_7d = rollapply(log(close / lag(close)),
@@ -848,6 +848,141 @@ results_oos %>%
 # TODO: Verlauf des MSE im Vergleich von IS zu OOS
 
 #TODO: review code, does not work at the moment 
+
+#ERICH: Comparison of compounded returns
+```{r}
+# Implementation of an In-and-Out trading strategy
+
+# compute 25% and 75% quantiles for signal derivation
+qtiles_test_target <- quantile(df_test_extended$target_return, probs = c(0.25, 0.75), na.rm = TRUE)
+qtiles_test_benchmark <- quantile(df_test_extended$pred_benchmark, probs = c(0.25, 0.75), na.rm = TRUE)
+qtiles_test_extended <- quantile(df_test_extended$pred_extended, probs = c(0.25, 0.75), na.rm = TRUE)
+qtiles_test_lasso <- quantile(df_test_extended$pred_lasso, probs = c(0.25, 0.75), na.rm = TRUE)
+
+
+# append trading signals (IN if 75% quantile is exceeded)
+df_test_extended <- df_test_extended %>% 
+  mutate(
+    signal_target = case_when(
+      target_return > qtiles_test_target[2] ~ 1,
+      target_return <= qtiles_test_target[2] ~ 0,
+      TRUE ~ 0
+    ),
+    signal_benchmark = case_when(
+      pred_benchmark > qtiles_test_benchmark[2] ~ 1,
+      pred_benchmark <= qtiles_test_benchmark[2] ~ 0,
+      TRUE ~ 0
+    ),
+    signal_extended = case_when(
+      pred_extended > qtiles_test_extended[2] ~ 1,
+      pred_extended <= qtiles_test_extended[2] ~ 0,
+      TRUE ~ 0
+    ),
+    signal_lasso = case_when(
+      pred_lasso > qtiles_test_lasso[2] ~ 1,
+      pred_lasso <= qtiles_test_lasso[2] ~ 0,
+      TRUE ~ 0
+    )
+  )
+
+
+df_test_extended <- df_test_extended %>% 
+  mutate(
+    benchmark_return = lag(signal_benchmark)*log_return,
+    extended_return = lag(signal_extended)*log_return,
+    lasso_return = lag(signal_lasso)*log_return,
+    benchmark_fee_flag = abs(signal_benchmark-lead(signal_benchmark)),
+    extended_fee_flag = abs(signal_extended-lead(signal_extended)),
+    lasso_fee_flag = abs(signal_lasso-lead(signal_lasso))
+  )
+
+df_test_extended <- df_test_extended %>% 
+  drop_na() %>%
+  mutate(
+    cum_return = cumsum(log_return),
+    cum_benchmark_return = cumsum(benchmark_return),
+    cum_extended_return = cumsum(extended_return),
+    cum_lasso_return = cumsum(lasso_return),
+    cum_fees_benchmark = cumsum(fees_dollar*benchmark_fee_flag),
+    cum_fees_extended = cumsum(fees_dollar*extended_fee_flag),
+    cum_fees_lasso = cumsum(fees_dollar*lasso_fee_flag)
+  )
+
+threshold <- qtiles_test_lasso[2]
+
+
+# Create a data frame with rectangles and labels for the fill legend
+rects <- data.frame(
+  xmin = c(-Inf, 0),
+  xmax = c(0, Inf),
+  ymin = c(threshold, threshold),
+  ymax = c(Inf, Inf),
+  label = c("False Positives", "Correct")
+)
+
+
+ggplot(df_test_extended, aes(x = target_return, y = pred_lasso)) +
+  # Background rectangles with fill mapped to "label" for legend:
+  geom_rect(data = rects,
+            aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = label),
+            alpha = 0.5, inherit.aes = FALSE) +
+  geom_point(alpha = 0.6, color = "steelblue") +
+  geom_abline(aes(intercept = qtiles_test_lasso[2], slope = 0, color = "75% quantile")) +
+  geom_abline(aes(intercept = 0, slope = 1, color = "Perfect fit"), linetype = "dashed") +
+  labs(
+    title = "Actual vs Predicted Target Returns (LASSO)",
+    x = "Actual Target Return",
+    y = "Predicted Target Return",
+    color = "Line",
+    fill = "Region"
+  ) +
+  scale_color_manual(values = c(
+    "75% quantile" = "blue",
+    "Perfect fit" = "red"
+  )) +
+  scale_fill_manual(values = c(
+    "Correct" = "honeydew",
+    "False Positives" = "mistyrose"
+  )) +
+  theme_minimal()
+
+
+
+
+
+ggplot(df_test_extended, aes(x = date)) +
+  geom_line(aes(y = exp(cum_return), color = "Buy&Hold")) +
+  geom_line(aes(y = exp(cum_benchmark_return), color = "7-Day Momentum")) +
+  geom_line(aes(y = exp(cum_extended_return), color = "Linear Regression")) +
+  geom_line(aes(y = exp(cum_lasso_return), color = "LASSO")) +
+  labs(title = "Cumulative Log Returns: LASSO vs 7-Day Momentum vs LR",
+       x = "Date", y = "Cumulative Log Return") +
+  scale_color_manual(values = c("Buy&Hold" = "black",
+                                "7-Day Momentum" = "blue",
+                                "Linear Regression" = "green",
+                                "LASSO" = "darkred"
+                                )) +
+  theme_minimal()
+
+
+ggplot(df_test_extended, aes(x = date)) +
+  geom_line(aes(y = (cum_fees_benchmark), color = "7-Day Momentum")) +
+  geom_line(aes(y = (cum_fees_extended), color = "Linear Regression")) +
+  geom_line(aes(y = (cum_fees_lasso), color = "LASSO")) +
+  labs(title = "Cumulative Fees: LASSO vs 7-Day Momentum vs LR",
+       x = "Date", y = "Cumulative Log Return") +
+  scale_color_manual(values = c("Buy&Hold" = "black",
+                                "7-Day Momentum" = "blue",
+                                "Linear Regression" = "green",
+                                "LASSO" = "darkred"
+                                )) +
+  theme_minimal()
+```
+
+
+
+
+
 
 #TODO: 
 Evaluate:
