@@ -1,0 +1,1077 @@
+---
+title: "AMProject_Sorted"
+author: "Laura Gullicksen, Erich Gozebina, Daria Palitzsch"
+date: "23/05/2025"
+output:
+  pdf_document:
+    number_sections: false
+  html_document:
+    df_print: paged
+  word_document: default
+fontsize: 12pt
+geometry: margin=1in
+header-includes:
+- \usepackage{titlesec}
+- \titleformat{\section}{\Large\bfseries}{\thesection}{1em}{}
+- \titleformat{\subsection}{\large\bfseries}{\thesubsection}{1em}{}
+- \titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{1em}{}
+- \usepackage{float}
+- \usepackage{placeins}
+- \FloatBarrier
+- \usepackage{mdframed}
+---
+
+```{r setup, include=FALSE}
+#setup chunk to load all required packages
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ggplot2)
+library(skimr)
+library(dplyr)
+library(slider)
+library(DescTools)
+library(stargazer)
+library(lubridate)
+library(zoo)
+library(glmnet)
+library(kableExtra)
+library(gridExtra)
+library(TTR)
+
+## setting the correct time zone
+Sys.setlocale("LC_TIME", "English") #set language for dates etc.
+Sys.setenv(TZ='UCT') #set timezone!
+
+```
+
+#TODO: Insert Captions for all Figures and Tables
+
+## 1. Introduction
+
+#TODO: write Intro
+
+
+## 2. Data & Descriptive Analysis
+
+**Data Aggregation and Strategy Frequency**
+
+The raw dataset provides CHAINLINK price data at \textit{hourly frequency}. While such high-frequency data offers more granular insights, we chose to \textbf{aggregate the data to daily frequency} for the following reasons: 
+
+1. **Alignment with Trading Strategy**: Our core trading strategy is based on a **7-day momentum signal**, which inherently reflects **weekly price trends**. Applying such a signal at an hourly resolution would not be consistent with the strategy's time horizon. 
+
+2. **Noise Reduction**: Hourly crypto data can be highly volatile and noisy. Aggregating to daily returns reduces **microstructure noise, short-term reversals**, and **Whale-driven price spikes**, improving the signal-to-noise ratio. 
+
+3. **Practical Execution Perspective**: A strategy that rebalances daily is **more realistic to implement**, considering gas fees, latencyn and operational constraints on decentralized exchanges or CEX APIs. 
+
+4. **Interpretability and Robustness**: Daily returns are more interpretable and robust across backtests. Most financial and technical indicators (e.g., RSI, MACD, SMA) are commonly applied on daily charts. 
+
+Our strategy issues long/short signals based on the past 7-day log return of CHAINLINK, i.e., 
+
+\[
+\text{Momentum}_t^{(7)} = \log\left(\frac{P_t}{P_{t-7}}\right)
+\]
+
+This naturally assumes daily data, as each observation reflects the cumulative return over the previous seven days.
+
+In summary, aggregating to daily frequency is a theoretically and practically sound choice. It ensures consistency between our signal construction, model estimation, and backtesting logic.
+
+
+```{r, echo = FALSE}
+#Load the price data of CHAINLINK
+prices_link <- read.csv("data/pricedata/hourly_prices_0x514910771AF9Ca656af840dff83E8264EcF986CA.csv")
+
+#change the data type of the timestamp
+prices_link <- prices_link %>% 
+  mutate(hour_timestamp = as.POSIXct(hour_timestamp, format = "%Y-%m-%d %H:%M")) %>%
+  arrange(hour_timestamp) # sort from old to new
+
+
+# Aggregate to daily close price (last available hourly close of each day)
+df_daily <- prices_link %>%
+  mutate(date = as.Date(hour_timestamp)) %>%
+  group_by(date) %>%
+  summarise(
+    close_price = last(close_price),
+    open_price = first(open_price),
+    high_price = max(high_price),
+    low_price = min(low_price)
+  ) %>%
+  arrange(date) %>%
+  mutate(
+    log_return = log(close_price / lag(close_price)),
+    log_open_return = log(open_price / lag(open_price)),
+    log_high_return = log(high_price / lag(high_price)),
+    log_low_return = log(low_price / lag(low_price)) 
+  )
+
+```
+
+
+To illustrate the effects of our aggregation decision and provide initial insights into the behavior of CHAINLINK, we present two visualizations below:
+
+```{r arranged_plots, fig.cap = "Close Price and Log Return of LINK", fig.align = "center", echo = FALSE, message = FALSE, warning = FALSE}
+
+
+# Plot close prices
+plot_1 <- ggplot(df_daily) + aes(x=date, y=close_price) + 
+  geom_line(color = "steelblue") + 
+  labs(title = "Daily LINK Close Price in USD", 
+       x = "Date", 
+       y = "Close Price (USD)"
+       ) +
+  scale_x_date(date_labels = "%Y", date_breaks = "1 year") +
+  theme_minimal(base_size = 13)
+
+#plot daily log returns 
+plot_2 <- ggplot(df_daily %>% drop_na(), aes(x = date, y = log_return)) +
+  geom_point(color = "#990000", size = 1.5, alpha = 0.7) + 
+  labs(
+    title = "Daily Log Returns of Chainlink",
+    x = "Date",
+    y = "Log Return"
+  ) +
+  scale_x_date(date_labels = "%Y", date_breaks = "1 year") +
+  theme_minimal(base_size = 13)
+
+#show the plots side-by-side
+grid.arrange(plot_1, plot_2, nrow = 1, ncol = 2)
+
+
+```
+
+Figure 1 shows two plots side-by-side: 
+
+- The **left panel** displays the daily closing price of CHAINLINK in USD since 2018, highlighting the asset’s strong bull run during the 2020–2021 crypto boom and its subsequent volatility.
+- The **right panel** shows the corresponding daily log returns, capturing the day-to-day fluctuations in price.
+
+Having a first glance on the LINK's price data, we see that there is not much movement until 2020, followed by sharp increases by factor ten in the consecutive nine months. The price reaches its peak of over 50\$/LINK in May 2021. In the second half of 2021 until April 2022 the data shows volatile behavior but with significant decrease on average. A trendless period of relatively low volatility, starting in May 2022 and ending in October 2023, shows prices between 5 and 10\$/LINK. Finally, we observe another increase at the end of 2023 and beginning of 2024.
+
+Moving away from non-stationary price data to stationary log returns, we observe a higher dispersion in the earlier years, suggesting a higher volatility then. Furthermore, most of points cluster around zero, indicating that there is no significant long term drift. Outliers, both positive and negative, imply extreme relative price movements, especially in the earlier period. Another important insight is the changing variance since the density of the points increases in the second half of the time window.
+
+Why did we chose log returns over canonical (arithmetic) returns? Using log returns instead of canonical returns is a standard practice in financial econometrics and modeling. 
+
+\[
+\tilde{r}_t = \log(r_t + 1) = \log\left(\frac{p_t}{p_{t-1}}\right)
+\]
+
+The underlying reason is the assumption that prices of an financial asset are log-normally distributed. This is reasonable since the log-normal distribution does not allow for negative values, which is also true for most asset prices (particularly for crypto currencies). Moreover, historical data provides evidence that the log-normal distribution gives a good fit for the prices of many financial assets. In reverse, since the logarithm function amplifies returns that are close to -1 more than positive returns, log-returns are distributed more symmetrically than canonical returns and indeed follow a normal distribution. Additionally, if returns are small, log returns approximate canonical returns very well. For x close to zero, it holds that
+
+\[
+\log(x+1) \approx x.
+\]
+
+We can expect small returns since we shorten the considered time interval. Another important property is the additivity of log returns. It allows us to aggregate returns over multiple periods by summing up the pointwise log returns - a property that canonical returns miss. These properties make log returns more suitable for linear regression models, hypothesis testing, and machine learning regressors.
+
+To better understand the characteristics of the Chainlink price and return series, we compute a set of descriptive statistics based on the daily close prices and the corresponding log returns. These statistics provide a first impression of the dataset’s distribution, dispersion, and extreme values, and help assess whether further preprocessing or transformation steps are necessary before applying predictive models.
+
+```{r, echo = FALSE}
+# Descriptive stats for prices and returns
+summary_stats <- df_daily %>%
+  summarise(
+    n_obs = n(),
+    mean_close = mean(close_price, na.rm = TRUE),
+    sd_close = sd(close_price, na.rm = TRUE),
+    min_close = min(close_price, na.rm = TRUE),
+    max_close = max(close_price, na.rm = TRUE),
+    mean_return = mean(log_return, na.rm = TRUE),
+    sd_return = sd(log_return, na.rm = TRUE),
+    min_return = min(log_return, na.rm = TRUE),
+    max_return = max(log_return, na.rm = TRUE)
+  )
+
+summary_stats_long <- as.data.frame(t(summary_stats))
+colnames(summary_stats_long) <- "Value"
+
+# Add a column for metric names
+summary_stats_long <- tibble::rownames_to_column(summary_stats_long, var = "Statistic")
+
+#Format values: no scientific notation and rounded to 4 digits
+summary_stas_long_formatted <- summary_stats_long %>% 
+  mutate(Value = formatC(Value, format = "f", digits = 4, big.mark = ",")) %>%
+  mutate(Statistic = dplyr::recode(Statistic,
+    n_obs        = "Number of Observations",
+    mean_close   = "Mean Close Price",
+    sd_close     = "Std. Dev. Close Price",
+    min_close    = "Minimum Close Price",
+    max_close    = "Maximum Close Price",
+    mean_return  = "Mean Return",
+    sd_return    = "Std. Dev. Return",
+    min_return   = "Minimum Return",
+    max_return   = "Maximum Return"
+  ))
+
+summary_stas_long_formatted %>%
+  kable("latex", booktabs = TRUE, aling = "lr", caption = "Summary Statistics for Chainlink Price and Returns") %>% 
+  kable_styling(latex_options = c("hold_position", "striped"))
+
+```
+
+The summary statistics in Table 1 reveal that the mean daily log return of Chainlink is close to zero, while the standard deviation is relatively high, reflecting the well-known volatility of cryptocurrency markets. The minimum and maximum returns further highlight the presence of large price swings. The wide range between the minimum and maximum close prices illustrates the strong appreciation potential, but also the riskiness of the asset over the observation period.
+
+
+To evaluate the temporal dependence structure of Chainlink’s daily log returns, we plot the autocorrelation function (ACF). The ACF helps determine whether past returns exhibit statistically significant correlation with future returns — a key consideration when assessing the potential for return predictability.
+
+```{r acf_plot, fig.cap = "ACF of Daily Log Returns for Chainlink", fig.align = "center", echo = FALSE, message = FALSE, warning = FALSE}
+# Plot ACF of daily log returns
+acf(
+  na.omit(df_daily$log_return),
+  main = "Autocorrelation of Daily Log Returns (LINK)",
+  col = "#1f78b4",      # blue line
+  lwd = 2,              # thicker line
+  cex.lab = 1.2,        # label size
+  cex.main = 1.3        # title size
+)
+```
+
+#TODO: don't show 0 on x-axis
+
+The autocorrelation function (ACF) of daily log returns in Figure 2 shows no statistically significant linear dependence at any lag, indicating that past returns do not linearly predict future returns. This finding supports the weak-form Efficient Market Hypothesis (EMH). However, it does not rule out the presence of exploitable patterns captured by non-linear or directional indicators. Therefore, we proceed with a momentum-based trading strategy, leveraging the sign of multi-day past returns to generate long or short signals.
+
+## 3. Standard Model 
+
+We develop a basic model that will serve as a starting point for an extended model. Our first approach to predict future returns is a simple linear regression. Why linear regression? First, this technique is the underlying mechanism of many advanced models that are often generalizations of the linear case. Therefore, it is a good fit for a starting point. In general, linear regression aims to identify linear relationships between input data and the target dimension. In our case the input data is price data, trading volume, market capitalization, and every predictor that is derived from those - returns for instance. The target dimension that we are going to predict is the return of the next day. The simplicity of linear mappings make results easy to interpret, whereby the model still remains powerful since many observed relationships are indeed of linear nature. Moreover, linear regression indicates the strength of those linear ties what makes it a helpful tool for decision making.
+
+**7-Day Momentum Signal Strategy**
+
+To quantify short-term trends in Chainlink’s price, we construct a \textbf{7-day momentum signal} defined as the logarithmic return over the past seven trading days:
+
+\[
+\text{Momentum}_t^{(7)} = \log\left(\frac{P_t}{P_{t-7}}\right)
+\]
+
+This momentum measure captures the cumulative price movement over one week and serves as a central predictive feature in our empirical analysis.
+
+In parallel, we define the \textbf{target return} as the one-day-ahead log return:
+
+\[
+r_{t+1} = \log\left(\frac{P_{t+1}}{P_t}\right)
+\]
+
+This setup aligns with our objective of forecasting next-day returns based on recent trends and other features. While a simple rule-based strategy could be derived by taking positions based on the sign of the predicted return, our approach instead relies on data-driven prediction models such as linear regression and LASSO to generate trading signals and evaluate strategy performance.
+
+**Baseline Predictive Model: 7d-Momentum-Only**
+
+```{r results='asis', echo = FALSE}
+# 1. Compute 7-day momentum
+df_daily <- df_daily %>%
+  mutate(
+    momentum_7d = log(close_price / lag(close_price, 7)),
+    target_return = lead(log_return)
+  )
+
+
+
+# split training and test data
+df_stdmodel <- df_daily %>% drop_na()
+
+# Get training and test data (4:1 split)
+df_train_stdmodel <- df_stdmodel[1:(floor(nrow(df_stdmodel)*0.8)),]
+df_test_stdmodel <- df_stdmodel[floor((nrow(df_stdmodel)*0.8) + 1):nrow(df_stdmodel),]
+
+
+# Extract X and Y vectors
+x_train_stdmodel <- df_train_stdmodel$momentum_7d
+y_train_stdmodel <- df_train_stdmodel$target_return
+
+x_test_stdmodel <- df_test_stdmodel$momentum_7d
+
+
+#standard model with 7-day-momentum
+model_standard <- lm(target_return ~ momentum_7d, data = df_train_stdmodel)
+
+#summary(model_standard)
+
+stargazer(model_standard,
+          type = "latex",
+          title = "Regression Results: 7-Day Momentum Strategy",
+          label = "tab:momentum_model",
+          style = "default",
+          dep.var.labels = "Strategy Return",
+          covariate.labels = c("Intercept", "7-Day Momentum"),
+          digits = 4,
+          float.env = "table",
+          header = FALSE)
+```
+
+# Draft from Erich:
+The linear regression results in an estimation for the intercept of 0.001 having a p-value of 0.427 and a slope of 0.002 having a p-value of 0.806 Since the p-value for the slope clearly exceeds 0.05 (the threshold, which is commonly used for acceptance), we can not conclude a linear relation between the 7-day momentum and the future day return. Actually, this aligns with our finding in the ACF analysis, where no linear dependency between a lag of 7 days and the future day return was indicated. Thus, this result calls for an extended approach of future return prediction.
+
+
+## 4. Extension 
+
+**Extension of our OLS**
+
+To enhance the predictive power of the benchmark model, we extend it by incorporating a broader set of explanatory variables that capture not only short- and medium-term price dynamics, but also market sentiment, technical indicators, and inter-asset relationships. These include:
+
+\begin{itemize}
+  \item Momentum indicators over 3, 7, and 14 days,
+  \item Lagged daily returns (1-day and 2-day),
+  \item A 7-day rolling volatility measure,
+  \item Technical indicators such as the 14-day Relative Strength Index (RSI), MACD value and histogram, Simple Moving Average difference, and Average True Range (ATR),
+  \item Day-of-week dummy variables to capture potential calendar effects,
+  \item BTC-based predictors: daily BTC return, 7-day BTC momentum, and 7-day BTC volatility,
+  \item ETH-based predictors: daily ETH return, 7-day ETH momentum, and 7-day ETH volatility,
+  \item ETH trading volume: daily ETH volume return, 7-day ETH volume momentum, and 7-day ETH volume volatility,
+  \item ETH market capitalization: daily ETH market capitalization return, 7-day ETH market capitalization momentum, and 7-day ETH market capitalization volatility,
+  \item Ethereum gas fees: daily gas return, 7-day gas momentum, and 7-day gas volatility.
+\end{itemize}
+
+The extended predictive regression model is specified as:
+
+\[
+r_{t+1} = \alpha + \sum_{h \in \{3,7,14\}} \beta_h \cdot \text{Momentum}_t^{(h)} + \gamma_1 \cdot r_t + \gamma_2 \cdot r_{t-1} + \delta \cdot \text{Volatility}_t^{(7)} + \sum_j \theta_j \cdot X_{t}^{(j)} + \varepsilon_{t+1}
+\]
+
+where \( X_t^{(j)} \) represents the set of technical indicators (RSI, MACD, ATR, SMA), weekday dummies, and BTC-based predictors.
+
+\begin{align*}
+r_{t+1} &:= \log\left(\frac{P_{t+1}}{P_t}\right) \quad \text{(one-day-ahead LINK return)} \\
+\text{Momentum}_t^{(h)} &:= \log\left(\frac{P_t}{P_{t-h}}\right) \quad \text{for } h \in \{3, 7, 14\} \\
+\text{Volatility}_t^{(7)} &:= \text{std} \left( r_{t-6}, \ldots, r_t \right) \\
+\text{BTC return}_t &:= \log\left(\frac{P^{\text{BTC}}_t}{P^{\text{BTC}}_{t-1}} \right) \\
+\text{BTC Momentum}_t^{(7)} &:= \log\left(\frac{P^{\text{BTC}}_t}{P^{\text{BTC}}_{t-7}}\right) \\
+\text{BTC Volatility}_t^{(7)} &:= \text{std} \left( r^{\text{BTC}}_{t-6}, \ldots, r^{\text{BTC}}_t \right)
+\end{align*}
+The ETH-based predictors are constructed analogously to the BTC-based predictors.
+The parametrization of this model is estimated via Ordinary Least Squares (OLS) on the in-sample period. By incorporating this rich feature set, we aim to capture a range of return drivers including price trends, market overreaction, volatility clustering, inter-market dependencies, and behavioral biases tied to trading weekdays.
+
+```{r, echo = FALSE}
+#We load the bitcoin and ethereum data on our own because we want to have the full time period aligned with the Chainlink data we have
+
+# Source https://coinmarketcap.com/currencies/bitcoin/historical-data/
+own_btc_prices <- read.csv("data/pricedata/Daily_Bitcoin_Own.csv", sep = ";") 
+# Source https://coinmarketcap.com/currencies/ethereum/historical-data/
+own_eth_prices <- read.csv("data/pricedata/ETH_pricedata.csv", sep = ";")
+# Source https://etherscan.io/chart/gasprice
+own_eth_gas <- read.csv("data/pricedata/ETH_daily_gas.csv", sep = ",")
+
+#compute BTC-related features
+own_btc_prices <- own_btc_prices %>% 
+  mutate(date = as.Date(timestamp)) %>% #Convert time stamp to Date format
+  mutate(
+    btc_return = log(close / lag(close)), #Daily log return of BTC
+    btc_momentum_7d = log(close / lag(close, 7)), #7-day log momentum of BTC
+    btc_volatility_7d = rollapply(log(close / lag(close)), 
+                                  width = 7, FUN = sd, fill = NA, align = "right") #rolling 7-day volatility (std dev of log retung)
+  ) %>%
+  select(date, btc_return, btc_momentum_7d, btc_volatility_7d) #keep only relevant columns
+
+#preprocess ETH price data
+own_eth_prices <- own_eth_prices %>%
+  mutate(date = as.POSIXct(timeClose, format = "%Y-%m-%d")) %>% #convert timeClose to POSIXct
+  select(date, open, high, low, close, volume, marketCap) %>% #keep only relevant columns
+  arrange(date) # sort from old to new
+
+own_eth_gas <- own_eth_gas %>% 
+  rename(date = Date.UTC., gas_wei = Value..Wei.) %>% #Rename columns for consistency
+  mutate(date = as.POSIXct(date, format = "%m/%d/%Y")) %>% #convert date column
+  select(date, gas_wei) %>% #keep only relevant columns
+  arrange(date) # sort from old to new
+
+#combine eth price and gas data and compute ETH-related features
+eth_data <- own_eth_prices %>%  
+  left_join(own_eth_gas, by = "date") %>%
+  mutate(
+    fees_dollar = gas_wei*(10^-18)*60000*close, #factor 60,000 for ERC20 token transfer
+    
+    #ETH price-based features
+    eth_return = log(close / lag(close)), #daily log return
+    eth_momentum_7d = log(close / lag(close, 7)), #7-day momentum
+    eth_volatility_7d = rollapply(log(close / lag(close)),
+                                  width = 7, FUN = sd, fill = NA, align = "right"), #7-day rolling volatility
+    
+    #ETH volume-based features
+    eth_return_volume = log(volume / lag(volume)),
+    eth_momentum_7d_volume = log(volume / lag(volume, 7)),
+    eth_volatility_7d_volume = rollapply(log(volume / lag(volume)),
+                                  width = 7, FUN = sd, fill = NA, align = "right"),
+    
+    #ETH market cap-based features
+    eth_return_marketcap = log(marketCap / lag(marketCap)),
+    eth_momentum_7d_marketcap = log(marketCap / lag(marketCap, 7)),
+    eth_volatility_7d_marketcap = rollapply(log(marketCap / lag(marketCap)),
+                                  width = 7, FUN = sd, fill = NA, align = "right"),
+    #ETH gas fee-based features
+    eth_return_gas = log(gas_wei / lag(gas_wei)),
+    eth_momentum_7d_gas = log(gas_wei / lag(gas_wei, 7)),
+    eth_volatility_7d_gas = rollapply(log(gas_wei / lag(gas_wei)),
+                                  width = 7, FUN = sd, fill = NA, align = "right")
+  )
+
+
+# Merge all external features into the main CHAINLINK daily dataset 
+df_daily <- df_daily %>%  
+  left_join(own_btc_prices, by = "date")  %>%
+  left_join(eth_data, by = "date")
+
+```
+
+```{r, echo = FALSE}
+# Step 1: Add features to the dataset
+df_extended <- df_daily %>%
+  mutate(
+    # Momentum over 3, 7 and 14 days
+    momentum_3d = log(close_price / lag(close_price, 3)),
+    momentum_7d = log(close_price / lag(close_price, 7)),
+    momentum_14d = log(close_price / lag(close_price, 14)),
+
+    # Lagged daily returns
+    return_lag1 = lag(log_return, 1),
+    return_lag2 = lag(log_return, 2),
+
+    # Volatility: rolling 7-day standard deviation of returns
+    volatility_7d = rollapply(log_return, width = 7, FUN = sd, align = "right", fill = NA),
+    
+    # RSI over 14 days
+    rsi_14 = RSI(close_price, n = 14),
+    
+    # Moving average trend signals
+    sma_7 = SMA(close_price, n = 7),
+    sma_14 = SMA(close_price, n = 14),
+    
+    # difference between short and long Moving average (trend strength)
+    sma_diff = sma_7 - sma_14,
+    
+    #MACD
+    macd_val = data.frame(MACD(close_price, nFast = 12, nSlow = 26, nSig = 9))$macd,
+    macd_signal = data.frame(MACD(close_price, nFast = 12, nSlow = 26, nSig = 9))$signal,
+    macd_hist = macd_val - macd_signal,
+    
+    #ATR (Average True Range) over 14 days
+    atr_14 = data.frame(ATR(HLC = data.frame(
+      high = high_price,
+      low = low_price,
+      close = close_price), n = 14))$atr,
+    
+    #weekdays
+    weekday = wday(date, label = TRUE, abbr = TRUE),
+         monday = ifelse(weekday == "Mon", 1, 0),
+         tuesday = ifelse(weekday == "Tue", 1, 0),
+         wednesday = ifelse(weekday == "Wed", 1, 0),
+         thursday = ifelse(weekday == "Thu", 1, 0),
+         friday = ifelse(weekday == "Fri", 1, 0),
+  ) %>%
+  drop_na()  # Remove rows with missing values
+
+```
+
+
+```{r results='asis', echo=FALSE}
+
+# Get training and test data (4:1 split)
+df_train_extended <- df_extended[1:(floor(nrow(df_extended)*0.8)),]
+df_test_extended <- df_extended[floor((nrow(df_extended)*0.8) + 1):nrow(df_extended),]
+
+
+# Step 2: Fit the extended linear model
+model_extended <- lm(target_return ~ 
+                       momentum_3d + momentum_7d + momentum_14d + 
+                            return_lag1 + return_lag2 + 
+                            volatility_7d + rsi_14 + sma_diff + 
+                            macd_val + macd_hist + atr_14 + 
+                            monday + tuesday + wednesday + thursday + friday +
+                            btc_return + btc_momentum_7d + btc_volatility_7d +
+                            eth_return + eth_momentum_7d + eth_volatility_7d +
+                            eth_return_volume + eth_momentum_7d_volume + 
+                            eth_volatility_7d_volume + 
+                            eth_return_marketcap + eth_momentum_7d_marketcap + 
+                            eth_volatility_7d_marketcap + 
+                            eth_return_gas + eth_momentum_7d_gas + 
+                            eth_volatility_7d_gas,
+                     data = df_train_extended)
+
+#show model as stargazer output
+stargazer(model_extended,
+          type = "latex",
+          title = "Extended Regression Model: Predicting LINK Returns with Crypto Features",
+          label = "tab:extended_model",
+          dep.var.labels = "Target Return",
+          covariate.labels = c("Intercept",
+                               "Momentum (3d)", "Momentum (7d)", "Momentum (14d)",
+                               "Lagged Return (1d)", "Lagged Return (2d)", "Volatility (7d)",
+                               "RSI (14)", "SMA Diff", "MACD Value", "MACD Histogram", "ATR (14)",
+                               "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+                               "BTC Return", "BTC Momentum (7d)", "BTC Volatility (7d)",
+                               "ETH Return", "ETH Momentum (7d)", "ETH Volatility (7d)",
+                               "ETH Volume", "ETH Momentum (7d) x Volume", "ETH Volatility (7d) x Volume",
+                               "ETH Market Cap", "ETH Momentum (7d) x Market Cap", "ETH Volatility (7d) x Market Cap",
+                               "ETH Gas", "ETH Momentum (7d) x Gas", "ETH Volatility (7d) x Gas"),
+          digits = 4,
+          float.env = "table",
+          header = FALSE)
+```
+
+#TODO: Description and interpretation of output -> Laura 
+
+**Lasso Model**
+
+To prevent overfitting and perform automatic variable selection, we extend our linear modeling approach using the Lasso (Least Absolute Shrinkage and Selection Operator). The Lasso adds a penalty term to the standard OLS loss function, shrinking some coefficient estimates toward zero. This results in a sparse model that may improve predictive performance, particularly when dealing with multiple correlated predictors. Furthermore, reducing the number of relevant features allows for a better interpretation of simulation results.
+
+The Lasso estimator is defined as the solution to the following optimization problem:
+
+\[
+\hat{\beta}^{\text{lasso}} = \arg \min_{\beta_0, \beta} \left\{ \sum_{i=1}^{n} \left( y_i - \beta_0 - \sum_{j=1}^{p} x_{ij} \beta_j \right)^2 + \lambda \sum_{j=1}^{p} |\beta_j| \right\}
+\]
+
+where:
+\begin{itemize}
+  \item \( y_i \) is the target variable (e.g., one-day-ahead return),
+  \item \( x_{ij} \) are the predictor variables,
+  \item \( \beta_j \) are the coefficients,
+  \item \( \lambda \geq 0 \) is the tuning parameter controlling the strength of the penalty.
+\end{itemize}
+
+As \( \lambda \) increases, more coefficients are shrunk toward zero. For \( \lambda = 0 \), the solution coincides with OLS.
+
+We use 10-fold cross-validation to select the optimal \( \lambda \) that minimizes the mean squared prediction error on held-out data.
+
+```{r echo = FALSE, results = 'asis'}
+
+# Step 1: Create the design matrix and response
+X <- model.matrix(target_return ~ 
+                    momentum_3d + momentum_7d + momentum_14d + 
+                    return_lag1 + return_lag2 + 
+                    volatility_7d + rsi_14 + sma_diff + 
+                    macd_val + macd_hist + atr_14 + 
+                    monday + tuesday + wednesday + thursday + friday +
+                    btc_return + btc_momentum_7d + btc_volatility_7d +
+                    eth_return_volume + eth_momentum_7d_volume + 
+                    eth_volatility_7d_volume +
+                    eth_return_marketcap + eth_momentum_7d_marketcap + 
+                    eth_volatility_7d_marketcap +
+                    eth_return_gas + eth_momentum_7d_gas + eth_volatility_7d_gas,
+                  data = df_train_extended)[, -1]  # remove intercept column
+y <- df_train_extended$target_return
+
+# Step 2: Run cross-validated Lasso
+set.seed(42)
+cv_lasso <- cv.glmnet(X, y, alpha = 1, nfolds = 10)
+
+# Best lambda output
+best_lambda <- cv_lasso$lambda.min
+cat(sprintf("**Optimal Lambda from Cross-Validation:** $\\lambda^* = %.6f$\n\n", best_lambda))
+
+```
+
+Given this optimal lambda, we now run the LASSO regression, including all variables from the previous OLS regression:
+
+```{r, echo = FALSE}
+
+#Fit final Lasso model using best lambda
+model_lasso <- glmnet(X, y, alpha = 1, lambda = best_lambda)
+
+# Show coefficients
+#coef(model_lasso)
+
+
+coef_df <- as.matrix(coef(model_lasso))
+non_zero <- coef_df[coef_df != 0, , drop = FALSE]
+
+lasso_table <- data.frame(
+  Predictor = rownames(non_zero),
+  Coefficient = round(non_zero[, 1], 6),
+  row.names = NULL
+)
+
+nice_names <- c(
+  "(Intercept)" = "Intercept",
+  "btc_return" = "Bitcoin Daily Return",
+  "eth_momentum_7d_volume" = "Ethereum 7-Day Volume Momentum"
+)
+
+# Apply renaming
+lasso_table$Predictor <- dplyr::recode(lasso_table$Predictor, !!!nice_names)
+
+
+kable(lasso_table, format = "latex", booktabs = TRUE, 
+      caption = "Non-Zero Coefficients from LASSO Regression",
+      label = "tab:lasso_coeffs",
+      align = c("l", "r")) %>%
+  kable_styling(latex_options = c("striped", "hold_position"))
+
+```
+
+The LASSO regression identified two non-zero predictors for explaining Chainlink (LINK) returns:
+
+1. Bitcoin Daily Return (Coefficient: -0.9552): This variable has a large and negative coefficient, indicating that when Bitcoin’s daily return increases by 1 unit (in our scaled units), the predicted return of our LINK-based trading strategy decreases by approximately 0.9552 units, all else equal. This suggests a strong inverse relationship between BTC movements and our strategy, potentially due to hedging behavior or negative spillovers.
+
+2. Ethereum 7-Day Volume Momentum (Coefficient: 0.0019): This predictor captures short-term trends in Ethereum’s trading volume. The positive but small coefficient implies that higher recent momentum in ETH trading volume is weakly associated with increased LINK returns, possibly due to spillover effects from rising market activity in related tokens.
+
+3. Intercept (Coefficient: 0.0014): The intercept represents the model’s baseline prediction when all predictors are zero. Here, it suggests a small positive base return, though in practice this often has less interpretive value than the covariates.
+
+## 5. Forecasting & Backtesting
+
+**In-Sample testing**
+
+To evaluate the performance of our predictive models, we begin by conducting in-sample (IS) testing. This involves fitting each model on a fixed training sample and evaluating how well the model explains historical variation in the data.
+
+We assess in-sample performance using the following criteria:
+
+\begin{itemize}
+  \item \textbf{Mean Squared Error (MSE)}: Measures the average squared difference between predicted and actual returns.
+  \[
+  \text{MSE} = \frac{1}{n} \sum_{i=1}^{n} (\hat{y}_i - y_i)^2
+  \]
+  
+  \item \textbf{Adjusted \( R^2 \)}: Indicates the proportion of variance explained by the model, adjusted for the number of predictors.
+  \[
+  R_{\text{adj}}^2 = 1 - \frac{\text{RSS}/(n - p - 1)}{\text{TSS}/(n - 1)}
+  \]
+
+  \item \textbf{Directional Accuracy}: The fraction of times the predicted direction matches the actual direction of returns.
+  \[
+  \text{Accuracy} = \frac{1}{n} \sum_{i=1}^{n} \mathbb{1} \left( \text{sign}(\hat{y}_i) = \text{sign}(y_i) \right)
+  \]
+\end{itemize}
+
+These metrics are computed for all three models:
+\begin{enumerate}
+  \item Benchmark (7-day momentum only),
+  \item Extended linear model with multiple features,
+  \item Lasso-regularized regression with automatic feature selection.
+\end{enumerate}
+
+```{r, echo = FALSE}
+# --- Benchmark model (already estimated) ---
+
+model_benchmark <- lm(target_return ~ momentum_7d, data = df_train_extended)
+
+# --- Predictions ---
+df_train_extended <- df_train_extended %>%
+  mutate(
+    pred_benchmark = predict(model_benchmark),
+    pred_extended = predict(model_extended),
+    pred_lasso = as.numeric(predict(model_lasso, newx = X)),
+
+    # Directional accuracy
+    dir_true = sign(target_return),
+    dir_benchmark = sign(pred_benchmark),
+    dir_extended = sign(pred_extended),
+    dir_lasso = sign(pred_lasso)
+  )
+
+# --- Evaluation metrics ---
+mse <- function(pred, actual) mean((pred - actual)^2)
+acc <- function(pred, actual) mean(sign(pred) == sign(actual))
+
+#manually calculate R2 for lasso (not provided by glmnet)
+rss_lasso <- sum((df_train_extended$pred_lasso - df_train_extended$target_return)^2)
+tss_lasso <- sum((df_train_extended$target_return - mean(df_train_extended$target_return))^2)
+r2_lasso <- 1 - rss_lasso / tss_lasso
+
+results_is <- tibble(
+  Model = c("Benchmark", "Extended", "Lasso"),
+  MSE = c(
+    mse(df_train_extended$pred_benchmark, df_train_extended$target_return),
+    mse(df_train_extended$pred_extended, df_train_extended$target_return),
+    mse(df_train_extended$pred_lasso, df_train_extended$target_return)
+  ),
+  Directional_Accuracy = c(
+    acc(df_train_extended$pred_benchmark, df_train_extended$target_return),
+    acc(df_train_extended$pred_extended, df_train_extended$target_return),
+    acc(df_train_extended$pred_lasso, df_train_extended$target_return)
+  ),
+  Adj_R2 = c(
+    summary(model_benchmark)$adj.r.squared,
+    summary(model_extended)$adj.r.squared,
+    r2_lasso
+  )
+)
+
+#results_is
+
+results_is %>%
+  mutate(across(where(is.numeric), round, digits = 4)) %>%  # round all numeric columns
+  kable("latex", booktabs = TRUE,
+        caption = "In-Sample Performance of Benchmark, Extended, and Lasso Models",
+        label = "tab:in_sample_perf") %>%
+  kable_styling(latex_options = c("striped", "hold_position", "scale_down"))
+
+```
+
+#TODO: interpret the In-Sample Results
+
+**Out-of-sample testing:**
+
+After performing the in-sample analysis, we now test our models Out-Of-Sample on the test data set: 
+
+```{r, echo = FALSE}
+
+X_test <- model.matrix(target_return ~ 
+  momentum_3d + momentum_7d + momentum_14d + 
+  return_lag1 + return_lag2 + 
+  volatility_7d + rsi_14 + sma_diff + 
+  macd_val + macd_hist + atr_14 + 
+  monday + tuesday + wednesday + thursday + friday +
+  btc_return + btc_momentum_7d + btc_volatility_7d +
+  eth_return_volume + eth_momentum_7d_volume + 
+  eth_volatility_7d_volume +
+  eth_return_marketcap + eth_momentum_7d_marketcap + 
+  eth_volatility_7d_marketcap +
+  eth_return_gas + eth_momentum_7d_gas + eth_volatility_7d_gas,
+  data = df_test_extended)[, -1] 
+
+df_test_extended <- df_test_extended %>%
+  mutate(
+    pred_benchmark = predict(model_benchmark, newdata = df_test_extended),
+    pred_extended  = predict(model_extended, newdata = df_test_extended),
+    pred_lasso     = as.numeric(predict(model_lasso, newx = X_test)),
+
+    # Directional accuracy
+    dir_true       = sign(target_return),
+    dir_benchmark  = sign(pred_benchmark),
+    dir_extended   = sign(pred_extended),
+    dir_lasso      = sign(pred_lasso)
+  )
+
+mean_train_return <- mean(df_train_extended$target_return, na.rm = TRUE)
+
+# Define R²_OS function
+r2_os <- function(actual, predicted, mean_train) {
+  ss_res <- sum((actual - predicted)^2, na.rm = TRUE)
+  ss_base <- sum((actual - mean_train)^2, na.rm = TRUE)
+  1 - ss_res / ss_base
+}
+
+
+results_oos <- tibble(
+  Model = c("Benchmark", "Extended", "Lasso"),
+  MSE = c(
+    mse(df_test_extended$pred_benchmark, df_test_extended$target_return),
+    mse(df_test_extended$pred_extended, df_test_extended$target_return),
+    mse(df_test_extended$pred_lasso, df_test_extended$target_return)
+  ),
+  Directional_Accuracy = c(
+    acc(df_test_extended$pred_benchmark, df_test_extended$target_return),
+    acc(df_test_extended$pred_extended, df_test_extended$target_return),
+    acc(df_test_extended$pred_lasso, df_test_extended$target_return)
+  )
+)
+
+# Add R2_OS column to results
+results_oos <- results_oos %>%
+  mutate(
+    R2_OS = c(
+      r2_os(df_test_extended$target_return, df_test_extended$pred_benchmark, mean_train_return),
+      r2_os(df_test_extended$target_return, df_test_extended$pred_extended, mean_train_return),
+      r2_os(df_test_extended$target_return, df_test_extended$pred_lasso, mean_train_return)
+    )
+  )
+
+#results_oos
+
+results_oos %>%
+  kable(format = "latex", digits = 4, caption = "Out-of-Sample Model Evaluation") %>%
+  kable_styling(latex_options = c("hold_position", "striped"))
+
+```
+
+#TODO Interpret OOS Results
+
+
+#TODO: check the code 
+```{r}
+# Implementation of an In-and-Out trading strategy
+
+# compute 25% and 75% quantiles for signal derivation
+qtiles_test_target <- quantile(df_test_extended$target_return, probs = c(0.25, 0.75), na.rm = TRUE)
+qtiles_test_benchmark <- quantile(df_test_extended$pred_benchmark, probs = c(0.25, 0.75), na.rm = TRUE)
+qtiles_test_extended <- quantile(df_test_extended$pred_extended, probs = c(0.25, 0.75), na.rm = TRUE)
+qtiles_test_lasso <- quantile(df_test_extended$pred_lasso, probs = c(0.25, 0.75), na.rm = TRUE)
+
+
+# append trading signals (IN if 75% quantile is exceeded)
+df_test_extended <- df_test_extended %>% 
+  mutate(
+    signal_target = case_when(
+      target_return > qtiles_test_target[2] ~ 1,
+      target_return <= qtiles_test_target[2] ~ 0,
+      TRUE ~ 0
+    ),
+    signal_benchmark = case_when(
+      pred_benchmark > qtiles_test_benchmark[2] ~ 1,
+      pred_benchmark <= qtiles_test_benchmark[2] ~ 0,
+      TRUE ~ 0
+    ),
+    signal_extended = case_when(
+      pred_extended > qtiles_test_extended[2] ~ 1,
+      pred_extended <= qtiles_test_extended[2] ~ 0,
+      TRUE ~ 0
+    ),
+    signal_lasso = case_when(
+      pred_lasso > qtiles_test_lasso[2] ~ 1,
+      pred_lasso <= qtiles_test_lasso[2] ~ 0,
+      TRUE ~ 0
+    )
+  )
+
+
+df_test_extended <- df_test_extended %>% 
+  mutate(
+    benchmark_return = lag(signal_benchmark)*log_return,
+    extended_return = lag(signal_extended)*log_return,
+    lasso_return = lag(signal_lasso)*log_return,
+    benchmark_fee_flag = abs(signal_benchmark-lead(signal_benchmark)),
+    extended_fee_flag = abs(signal_extended-lead(signal_extended)),
+    lasso_fee_flag = abs(signal_lasso-lead(signal_lasso))
+  )
+
+df_test_extended <- df_test_extended %>% 
+  drop_na() %>%
+  mutate(
+    cum_return = cumsum(log_return),
+    cum_benchmark_return = cumsum(benchmark_return),
+    cum_extended_return = cumsum(extended_return),
+    cum_lasso_return = cumsum(lasso_return),
+    cum_fees_benchmark = cumsum(fees_dollar*benchmark_fee_flag),
+    cum_fees_extended = cumsum(fees_dollar*extended_fee_flag),
+    cum_fees_lasso = cumsum(fees_dollar*lasso_fee_flag)
+  )
+
+threshold <- qtiles_test_lasso[2]
+
+
+# Create a data frame with rectangles and labels for the fill legend
+rects <- data.frame(
+  xmin = c(-Inf, 0),
+  xmax = c(0, Inf),
+  ymin = c(threshold, threshold),
+  ymax = c(Inf, Inf),
+  label = c("False Positives", "Correct")
+)
+
+
+plot_1_inout <- ggplot(df_test_extended, aes(x = target_return, y = pred_lasso)) +
+  # Background rectangles with fill mapped to "label" for legend:
+  geom_rect(data = rects,
+            aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = label),
+            alpha = 0.5, inherit.aes = FALSE) +
+  geom_point(alpha = 0.6, color = "steelblue") +
+  geom_abline(aes(intercept = qtiles_test_lasso[2], slope = 0, color = "75% quantile")) +
+  geom_abline(aes(intercept = 0, slope = 1, color = "Perfect fit"), linetype = "dashed") +
+  labs(
+    title = "Actual vs Predicted Target Returns (LASSO)",
+    x = "Actual Target Return",
+    y = "Predicted Target Return",
+    color = "Line",
+    fill = "Region"
+  ) +
+  scale_color_manual(values = c(
+    "75% quantile" = "blue",
+    "Perfect fit" = "red"
+  )) +
+  scale_fill_manual(values = c(
+    "Correct" = "honeydew",
+    "False Positives" = "mistyrose"
+  )) +
+  theme_minimal()
+
+
+
+
+
+plot_2_inout <-  ggplot(df_test_extended, aes(x = date)) +
+  geom_line(aes(y = exp(cum_return), color = "Buy&Hold")) +
+  geom_line(aes(y = exp(cum_benchmark_return), color = "7-Day Momentum")) +
+  geom_line(aes(y = exp(cum_extended_return), color = "Linear Regression")) +
+  geom_line(aes(y = exp(cum_lasso_return), color = "LASSO")) +
+  labs(title = "Cumulative Log Returns: LASSO vs 7-Day Momentum vs LR",
+       x = "Date", y = "Cumulative Log Return") +
+  scale_color_manual(values = c("Buy&Hold" = "black",
+                                "7-Day Momentum" = "blue",
+                                "Linear Regression" = "green",
+                                "LASSO" = "darkred"
+                                )) +
+  theme_minimal()
+
+
+plot_3_inout <- ggplot(df_test_extended, aes(x = date)) +
+  geom_line(aes(y = (cum_fees_benchmark), color = "7-Day Momentum")) +
+  geom_line(aes(y = (cum_fees_extended), color = "Linear Regression")) +
+  geom_line(aes(y = (cum_fees_lasso), color = "LASSO")) +
+  labs(title = "Cumulative Fees: LASSO vs 7-Day Momentum vs LR",
+       x = "Date", y = "Cumulative Log Return") +
+  scale_color_manual(values = c("Buy&Hold" = "black",
+                                "7-Day Momentum" = "blue",
+                                "Linear Regression" = "green",
+                                "LASSO" = "darkred"
+                                )) +
+  theme_minimal()
+
+
+
+plot_1_inout
+```
+```{r, echo = FALSE}
+#show the other two plots separately 
+
+grid.arrange(plot_2_inout, plot_3_inout, ncol = 1, nrow = 2)
+```
+
+#TODO describe the plots
+
+
+
+
+
+
+
+
+#TODO: find the right location for the following code chunk: 
+
+```{r}
+# 1) Compute daily strategy returns & cumulative log-returns
+df_test_extended <- df_test_extended %>%
+  mutate(
+    # daily strategy log-returns = signal × next-day log return
+    ret_benchmark      = dir_benchmark  * target_return,
+    ret_extended       = dir_extended   * target_return,
+    ret_lasso          = dir_lasso      * target_return,
+    # cumulative log returns
+    cum_ret_benchmark  = cumsum(coalesce(ret_benchmark,  0)),
+    cum_ret_extended   = cumsum(coalesce(ret_extended,   0)),
+    cum_ret_lasso      = cumsum(coalesce(ret_lasso,      0)),
+    cum_ret_bh         = cumsum(coalesce(log_return,      0))
+  )
+
+# 2) Pivot to long format
+df_plot <- df_test_extended %>%
+  select(date,
+         "Buy & Hold"      = cum_ret_bh,
+        "Benchmark"         = cum_ret_benchmark,
+         "Extended Model"    = cum_ret_extended,
+        "Lasso Model"       = cum_ret_lasso
+  ) %>%
+  pivot_longer(-date, names_to = "Strategy", values_to = "Cumulative_Log_Return")
+
+# 3) Plot
+ggplot(df_plot, aes(x = date, y = Cumulative_Log_Return, color = Strategy)) +
+  geom_line(linewidth = 1) +
+  labs(
+    title = "Cumulative Log Returns: Buy-&-Hold vs. Benchmark, Extended & Lasso",
+    x     = "Date",
+    y     = "Cumulative Log Return",
+    color = NULL
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+#TODO: Interpret plot results
+
+
+
+
+## Optional: Rolling Lasso Approach
+
+```{r, echo = FALSE}
+
+#COMMENTED OUT BECAUSE OF LONG RUNNING TIME
+
+#define a function to run the rolling out-of-sample lasso regression
+# run_rolling_lasso <- function(df, y_var, window_size = 500, x_vars = NULL) {
+#   # Drop rows where the target variable is NA
+#   df <- df %>% filter(!is.na(.data[[y_var]]))
+#   
+#   # Automatically detect predictors if not provided
+#   if (is.null(x_vars)) {
+#     predictors <- setdiff(names(df), c("date", y_var))
+#   } else {
+#     predictors <- x_vars
+#   }
+#   
+#   # Storage for predictions
+#   predictions <- rep(NA, nrow(df))
+# 
+#   # Rolling window loop
+#   for (i in seq(window_size + 1, nrow(df))) {
+#     # Get training and test data
+#     train_data <- df[(i - window_size):(i - 1), ]
+#     test_data <- df[i, ]
+# 
+#     # Extract X and y matrices
+#     x_train <- as.matrix(train_data[, predictors])
+#     y_train <- train_data[[y_var]]
+# 
+#     x_test <- as.matrix(test_data[, predictors])
+# 
+#     # Fit LASSO model
+#     cv_fit <- cv.glmnet(x_train, y_train, alpha = 1)
+#     best_lambda <- cv_fit$lambda.min
+#     # Refit LASSO model using best lambda
+#     model <- glmnet(x_train, y_train, alpha = 1, lambda = best_lambda)
+# 
+#    # Predict for one-step ahead
+#     predictions[i] <- predict(model, newx = x_test)
+#   }
+# 
+#   # Return tibble with actual vs predicted
+#   tibble(
+#     date = df$date,
+#     actual = df[[y_var]],
+#     predicted = predictions
+#   )
+# }
+# 
+# x_vars <- colnames(df_extended)[!(colnames(df_extended) %in% c("date", "target_return"))]
+# 
+# # Keep only numeric predictors
+# x_vars_numeric <- x_vars[sapply(df_extended[, x_vars], is.numeric)]
+# 
+# # Filter for complete cases in x_vars_numeric + target_return
+# df_clean_rolling <- df_extended %>%
+#   dplyr::select(date, target_return, all_of(x_vars_numeric)) %>%
+#   filter(complete.cases(.))
+# 
+# #For each out-of-sample prediction, the model is trained on the previous 500 observations
+# results_rolling <- run_rolling_lasso(
+#   df = df_clean_rolling,
+#   y_var = "target_return",
+#   window_size = 500,
+#   x_vars = colnames(df_clean_rolling)[!(colnames(df_clean_rolling) %in% c("date", "target_return"))]
+# )
+
+```
+
+
+
+```{r, echo = FALSE}
+# # Make sure 'results' has no NAs in actual or predicted
+# results_clean_rolling <- results_rolling %>% filter(!is.na(actual), !is.na(predicted))
+# 
+# # Compute performance metrics
+# r_squared_rolling <- cor(results_clean_rolling$actual, results_clean_rolling$predicted)^2
+# mse_rolling <- mean((results_clean_rolling$actual - results_clean_rolling$predicted)^2)
+# directional_accuracy_rolling <- mean(sign(results_clean_rolling$actual) == sign(results_clean_rolling$predicted))
+# 
+# # Compute Sharpe Ratios (daily returns assumed)
+# sharpe_ratio_actual_rolling <- mean(results_clean_rolling$actual) / sd(results_clean_rolling$actual) * sqrt(252)
+# sharpe_ratio_pred_rolling <- mean(results_clean_rolling$predicted) / sd(results_clean_rolling$predicted) * sqrt(252)
+# 
+# # Print metrics
+# performance_metrics_rolling <- tibble(
+#   `R-squared` = r_squared_rolling,
+#   `MSE` = mse_rolling,
+#   `Directional Accuracy` = directional_accuracy_rolling,
+#   `Sharpe Ratio (Actual)` = sharpe_ratio_actual_rolling,
+#   `Sharpe Ratio (Predicted)` = sharpe_ratio_pred_rolling
+# )
+# 
+# performance_metrics_rolling %>%
+#   kable("latex", booktabs = TRUE, digits = 4,
+#         caption = "Table 5: Out-of-Sample Performance Metrics of LASSO Model") %>%
+#   kable_styling(latex_options = c("striped", "hold_position", "scale_down")) %>%
+#   row_spec(0, bold = TRUE)
+
+
+```
+
+## 6. Conclusion
+
+#TODO: write conclusion
+
+
+
+
+
