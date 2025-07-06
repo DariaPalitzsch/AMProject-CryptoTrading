@@ -58,7 +58,7 @@ Our objective is to develop a predictive model for daily returns based on econom
 To assess the practical viability of the strategy, we apply a backtest using daily data from October 2017 to April 2024. We incorporate realistic assumptions, including transaction costs, and benchmark the strategy’s performance against both buy-and-hold and naïve momentum approaches. 
 Our contribution lies in demonstrating that even in a highly volatile and seemingly chaotic market like crypto, structured, data-driven strategies can identify persistent short-term patterns. By combining economic intuition with statistical learning, we provide a transparent and replicable framework for active management in digital asset markets.
 
-```{r setup, include = FALSE}
+```{r, include = FALSE}
 #Zaremba, A., Bilgin, M. H., Long, H., Mercik, A., & Szczygielski, J. J. (2021). Up or down? Short-term reversal, momentum, and liquidity effects in cryptocurrency markets. International Review of Financial Analysis, 78, 101908.
 ```
 
