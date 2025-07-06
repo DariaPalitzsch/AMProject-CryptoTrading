@@ -53,9 +53,9 @@ Sys.setenv(TZ='UCT') #set timezone!
 
 Cryptocurrency markets are known for their extreme volatility, behavioral trading dynamics, and weak-form inefficiencies. Unlike traditional financial markets, they operate 24/7, are highly speculative, and are heavily influenced by sentiment, momentum, and macro-crypto developments. This environment creates both substantial risk and potential reward, especially for strategies that can extract signals from the surrounding noise.
 
-In this report, we design and evaluate a short-term trading strategy for Chainlink (LINK), a top-25 cryptocurrency that serves as a decentralized oracle network within the DeFi ecosystem. Chainlink stands out as a compelling asset due to its high liquidity, large market cap, and fundamental utility, which make it less susceptible to manipulation and more likely to exhibit predictable price dynamics.
-Our objective is to develop a predictive model for daily returns based on economically interpretable variables, with a focus on 7-day momentum, technical indicators, and macro-crypto factors such as Bitcoin return. We implement this model using ordinary least squares (OLS) and Lasso regression, allowing us to balance interpretability with robustness by filtering out noisy predictors. Zaremba et al. (2021), for example, found that short-term momentum effects are more pronounced in large, liquid cryptocurrencies, supporting the suitability of LINK for a trend-based predictive strategy. Its historical trading behavior further confirms the presence of exploitable short-term return persistence.
-To assess the practical viability of the strategy, we apply a rolling-window backtest using daily data from October 2017 to April 2024. We incorporate realistic assumptions, including transaction costs, and benchmark the strategy’s performance against both buy-and-hold and naïve momentum approaches. 
+In this report, we design and evaluate a short-term trading strategy for Chainlink's native token LINK, a top-25 cryptocurrency that serves as a decentralized oracle network within the DeFi ecosystem. Chainlink stands out as a compelling asset due to its high liquidity, large market cap, and fundamental utility, which make it less susceptible to manipulation and more likely to exhibit predictable price dynamics.
+Our objective is to develop a predictive model for daily returns based on economically interpretable variables, with a focus on 7-day momentum, technical indicators, and macro-crypto factors such as Bitcoin return. We implement this model using linear regression and the LASSO shrinkage method, allowing us to balance interpretability with robustness by filtering out noisy predictors. Zaremba et al. (2021), for example, found that short-term momentum effects are more pronounced in large, liquid cryptocurrencies, supporting the suitability of LINK for a trend-based predictive strategy. Its historical trading behavior further confirms the presence of exploitable short-term return persistence.
+To assess the practical viability of the strategy, we apply a backtest using daily data from October 2017 to April 2024. We incorporate realistic assumptions, including transaction costs, and benchmark the strategy’s performance against both buy-and-hold and naïve momentum approaches. 
 Our contribution lies in demonstrating that even in a highly volatile and seemingly chaotic market like crypto, structured, data-driven strategies can identify persistent short-term patterns. By combining economic intuition with statistical learning, we provide a transparent and replicable framework for active management in digital asset markets.
 
 ```{r setup, include = FALSE}
@@ -90,7 +90,7 @@ In summary, aggregating to daily frequency is a theoretically and practically so
 
 
 ```{r, echo = FALSE}
-#Load the price data of CHAINLINK
+#Load the price data of LINK
 prices_link <- read.csv("data/pricedata/hourly_prices_0x514910771AF9Ca656af840dff83E8264EcF986CA.csv")
 
 #change the data type of the timestamp
@@ -139,7 +139,7 @@ plot_1 <- ggplot(df_daily) + aes(x=date, y=close_price) +
 plot_2 <- ggplot(df_daily %>% drop_na(), aes(x = date, y = log_return)) +
   geom_point(color = "#990000", size = 1.2, alpha = 0.7) + 
   labs(
-    title = "Daily Log Returns of Chainlink",
+    title = "Daily Log Returns of LINK",
     x = "Date",
     y = "Log Return"
   ) +
@@ -216,7 +216,7 @@ summary_stas_long_formatted <- summary_stats_long %>%
   ))
 
 summary_stas_long_formatted %>%
-  kable("latex", booktabs = TRUE, aling = "lr", caption = "Summary Statistics for Chainlink Price and Returns") %>% 
+  kable("latex", booktabs = TRUE, aling = "lr", caption = "Summary Statistics for LINK Price and Returns") %>% 
   kable_styling(latex_options = c("hold_position", "striped"))
 
 ```
@@ -226,7 +226,7 @@ The summary statistics in Table 1 reveal that the mean daily log return of LINK 
 
 To evaluate the temporal dependence structure of LINK’s daily log returns, we plot the autocorrelation function (ACF). The ACF helps determine whether past returns exhibit statistically significant correlation with future returns — a key consideration when assessing the potential for return predictability.
 
-```{r acf_plot, fig.cap = "ACF of Daily Log Returns for Chainlink", fig.align = "center", echo = FALSE, message = FALSE, warning = FALSE}
+```{r acf_plot, fig.cap = "ACF of Daily Log Returns for LINK", fig.align = "center", echo = FALSE, message = FALSE, warning = FALSE}
 # Plot ACF of daily log returns
 # acf(
 #   na.omit(df_daily$log_return),
@@ -270,7 +270,7 @@ We develop a basic model that will serve as a starting point for an extended mod
 
 **7-Day Momentum Signal Strategy**
 
-To quantify short-term trends in Chainlink’s price, we construct a \textbf{7-day momentum signal} defined as the logarithmic return over the past seven trading days:
+To quantify short-term trends in LINK’s price, we construct a \textbf{7-day momentum signal} defined as the logarithmic return over the past seven trading days:
 
 \[
 \text{Momentum}_t^{(7)} = \log\left(\frac{P_t}{P_{t-7}}\right)
@@ -603,7 +603,7 @@ kbl(#"latex",
 
 ```
 
-Table 3 presents the output of our extended OLS regression model, where the dependent variable is the daily return of Chainlink. This model includes not only LINK-specific momentum indicators but also technical indicators, calendar dummies, and a broad set of macro-crypto variables derived from Bitcoin (BTC) and Ethereum (ETH). The purpose of this model is to evaluate whether combining crypto-specific and cross-asset features can improve return predictability over the basic 7-day momentum model (as seen in Table 2). Several predictors emerge as statistically significant. The strongest within-asset signals are the one-day and two-day lagged LINK returns, both of which have positive and significant coefficients (0.0796 and 0.0920), indicating short-term positive autocorrelation. Interestingly, the coefficient for 3-day momentum is significantly negative, suggesting some evidence of short-term reversal over that horizon. In contrast, longer momentum terms (7-day and 14-day) are negative but not statistically significant.
+Table 3 presents the output of our extended OLS regression model, where the dependent variable is the daily return of LINK. This model includes not only LINK-specific momentum indicators but also technical indicators, calendar dummies, and a broad set of macro-crypto variables derived from Bitcoin (BTC) and Ethereum (ETH). The purpose of this model is to evaluate whether combining crypto-specific and cross-asset features can improve return predictability over the basic 7-day momentum model (as seen in Table 2). Several predictors emerge as statistically significant. The strongest within-asset signals are the one-day and two-day lagged LINK returns, both of which have positive and significant coefficients (0.0796 and 0.0920), indicating short-term positive autocorrelation. Interestingly, the coefficient for 3-day momentum is significantly negative, suggesting some evidence of short-term reversal over that horizon. In contrast, longer momentum terms (7-day and 14-day) are negative but not statistically significant.
 
 From a cross-asset perspective, the results reveal that Bitcoin returns are negatively associated with LINK returns (-1.0111), pointing to potential substitution effects or temporary decoupling between the two assets. Similarly, Bitcoin volatility has a negative and significant impact, implying that increased uncertainty in BTC reduces returns for LINK. A similar pattern is observed for Ethereum returns, which also carry a negative and marginally significant coefficient (-1.0707). Notably, the interaction between Ethereum momentum and market cap is positive and significant, suggesting that when Ethereum trends upward in conjunction with growing market cap, it positively influences LINK performance. 
 
