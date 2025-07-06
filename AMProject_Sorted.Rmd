@@ -58,17 +58,17 @@ Sys.setenv(TZ='UCT') #set timezone!
 
 **Data Aggregation and Strategy Frequency**
 
-The raw dataset provides CHAINLINK price data at \textit{hourly frequency}. While such high-frequency data offers more granular insights, we chose to \textbf{aggregate the data to daily frequency} for the following reasons: 
+For our project we chose the a dataset that provides price data of Chainlink's native LINK token at \textit{hourly frequency}. While such high-frequency data offers more granular insights, we chose to \textbf{aggregate the data to daily frequency} for the following reasons: 
 
 1. **Alignment with Trading Strategy**: Our core trading strategy is based on a **7-day momentum signal**, which inherently reflects **weekly price trends**. Applying such a signal at an hourly resolution would not be consistent with the strategy's time horizon. 
 
 2. **Noise Reduction**: Hourly crypto data can be highly volatile and noisy. Aggregating to daily returns reduces **microstructure noise, short-term reversals**, and **Whale-driven price spikes**, improving the signal-to-noise ratio. 
 
-3. **Practical Execution Perspective**: A strategy that rebalances daily is **more realistic to implement**, considering gas fees, latencyn and operational constraints on decentralized exchanges or CEX APIs. 
+3. **Practical Execution Perspective**: A strategy that rebalances daily is **more realistic to implement**, considering gas fees, latency and operational constraints on decentralized exchanges or CEX APIs. 
 
 4. **Interpretability and Robustness**: Daily returns are more interpretable and robust across backtests. Most financial and technical indicators (e.g., RSI, MACD, SMA) are commonly applied on daily charts. 
 
-Our strategy issues long/short signals based on the past 7-day log return of CHAINLINK, i.e., 
+Our base strategy issues long/short signals based on the past 7-day log return of LINK, i.e., 
 
 \[
 \text{Momentum}_t^{(7)} = \log\left(\frac{P_t}{P_{t-7}}\right)
@@ -110,12 +110,12 @@ df_daily <- prices_link %>%
 ```
 
 
-To illustrate the effects of our aggregation decision and provide initial insights into the behavior of CHAINLINK, we present two visualizations below:
+To illustrate the effects of our aggregation decision and provide initial insights into the behavior of LINK prices, we present two visualizations below:
 
 ```{r arranged_plots, fig.cap = "Close Price and Log Return of LINK", fig.align = "center", echo = FALSE, message = FALSE, warning = FALSE}
 
 
-# Plot close prices
+# Plot closing prices
 plot_1 <- ggplot(df_daily) + aes(x=date, y=close_price) + 
   geom_line(color = "steelblue") + 
   labs(title = "Daily LINK Close Price in USD", 
@@ -125,7 +125,7 @@ plot_1 <- ggplot(df_daily) + aes(x=date, y=close_price) +
   scale_x_date(date_labels = "%Y", date_breaks = "1 year") +
   theme_minimal(base_size = 10)
 
-#plot daily log returns 
+# Plot daily log returns 
 plot_2 <- ggplot(df_daily %>% drop_na(), aes(x = date, y = log_return)) +
   geom_point(color = "#990000", size = 1.2, alpha = 0.7) + 
   labs(
@@ -136,7 +136,7 @@ plot_2 <- ggplot(df_daily %>% drop_na(), aes(x = date, y = log_return)) +
   scale_x_date(date_labels = "%Y", date_breaks = "1 year") +
   theme_minimal(base_size = 10)
 
-#show the plots side-by-side
+# Show the plots side-by-side
 grid.arrange(plot_1, plot_2, nrow = 2, ncol = 1)
 
 
@@ -145,7 +145,7 @@ grid.arrange(plot_1, plot_2, nrow = 2, ncol = 1)
 Figure 1 shows two plots: 
 
 \begin{itemize}
-  \item The **upper panel** displays the daily closing price of CHAINLINK in USD since 2018, highlighting the asset’s strong bull run during the 2020–2021 crypto boom and its subsequent volatility.
+  \item The **upper panel** displays the daily closing price of LINK in USD since 2018, highlighting the asset’s strong bull run during the 2020–2021 crypto boom and its subsequent volatility.
   \item The **lower panel** shows the corresponding daily log returns, capturing the day-to-day fluctuations in price.
 \end{itemize}
 
@@ -165,9 +165,9 @@ The underlying reason is the assumption that prices of an financial asset are lo
 \log(x+1) \approx x.
 \]
 
-We can expect small returns since we shorten the considered time interval. Another important property is the additivity of log returns. It allows us to aggregate returns over multiple periods by summing up the pointwise log returns - a property that canonical returns miss. These properties make log returns more suitable for linear regression models, hypothesis testing, and machine learning regressors.
+We can expect small returns since we shorten the considered time interval to one day. Another important property is the additivity of log returns. It allows us to aggregate returns over multiple periods by summing up the pointwise log returns - a property that canonical returns miss. These properties make log returns more suitable for linear regression models, hypothesis testing, and machine learning regressors.
 
-To better understand the characteristics of the Chainlink price and return series, we compute a set of descriptive statistics based on the daily close prices and the corresponding log returns. These statistics provide a first impression of the dataset’s distribution, dispersion, and extreme values, and help assess whether further preprocessing or transformation steps are necessary before applying predictive models.
+To better understand the characteristics of the LINK price and return time series, we present a set of descriptive statistics based on the daily close prices and the corresponding log returns. These statistics provide a first impression of the dataset’s distribution, dispersion, and extreme values, and help assess whether further preprocessing or transformation steps are necessary before applying predictive models.
 
 ```{r, echo = FALSE}
 # Descriptive stats for prices and returns
@@ -190,7 +190,7 @@ colnames(summary_stats_long) <- "Value"
 # Add a column for metric names
 summary_stats_long <- tibble::rownames_to_column(summary_stats_long, var = "Statistic")
 
-#Format values: no scientific notation and rounded to 4 digits
+# Format values: no scientific notation and rounded to 4 digits
 summary_stas_long_formatted <- summary_stats_long %>% 
   mutate(Value = formatC(Value, format = "f", digits = 4, big.mark = ",")) %>%
   mutate(Statistic = dplyr::recode(Statistic,
@@ -211,10 +211,10 @@ summary_stas_long_formatted %>%
 
 ```
 
-The summary statistics in Table 1 reveal that the mean daily log return of Chainlink is close to zero, while the standard deviation is relatively high, reflecting the well-known volatility of cryptocurrency markets. The minimum and maximum returns further highlight the presence of large price swings. The wide range between the minimum and maximum close prices illustrates the strong appreciation potential, but also the riskiness of the asset over the observation period.
+The summary statistics in Table 1 reveal that the mean daily log return of LINK is close to zero, while the standard deviation is relatively high, reflecting the well-known volatility of cryptocurrency markets. The minimum and maximum returns further highlight the presence of large price swings. The wide range between the minimum and maximum close prices illustrates the strong appreciation potential, but also the riskiness of the asset over the observation period.
 
 
-To evaluate the temporal dependence structure of Chainlink’s daily log returns, we plot the autocorrelation function (ACF). The ACF helps determine whether past returns exhibit statistically significant correlation with future returns — a key consideration when assessing the potential for return predictability.
+To evaluate the temporal dependence structure of LINK’s daily log returns, we plot the autocorrelation function (ACF). The ACF helps determine whether past returns exhibit statistically significant correlation with future returns — a key consideration when assessing the potential for return predictability.
 
 ```{r acf_plot, fig.cap = "ACF of Daily Log Returns for Chainlink", fig.align = "center", echo = FALSE, message = FALSE, warning = FALSE}
 # Plot ACF of daily log returns
@@ -252,11 +252,11 @@ plot(
 abline(h = 0)
 ```
 
-The autocorrelation function (ACF) of daily log returns in Figure 2 shows no statistically significant linear dependence at any lag, indicating that past returns do not linearly predict future returns. This finding supports the weak-form Efficient Market Hypothesis (EMH). However, it does not rule out the presence of exploitable patterns captured by non-linear or directional indicators. Therefore, we proceed with a momentum-based trading strategy, leveraging the sign of multi-day past returns to generate long or short signals.
+The autocorrelation function (ACF) of daily log returns in Figure 2 shows no statistically significant linear dependence at any lag within 33 days, indicating that past returns do not linearly predict future returns. This finding supports the weak-form Efficient Market Hypothesis (EMH). However, it does not rule out the presence of exploitable patterns captured by non-linear or directional indicators. Therefore, we proceed with a momentum-based trading strategy, leveraging the sign of multi-day past returns to generate long or short signals.
 
 ## 3. Standard Model 
 
-We develop a basic model that will serve as a starting point for an extended model. Our first approach to predict future returns is a simple linear regression. Why linear regression? First, this technique is the underlying mechanism of many advanced models that are often generalizations of the linear case. Therefore, it is a good fit for a starting point. In general, linear regression aims to identify linear relationships between input data and the target dimension. In our case the input data is price data, trading volume, market capitalization, and every predictor that is derived from those - returns for instance. The target dimension that we are going to predict is the return of the next day. The simplicity of linear mappings make results easy to interpret, whereby the model still remains powerful since many observed relationships are indeed of linear nature. Moreover, linear regression indicates the strength of those linear ties what makes it a helpful tool for decision making.
+We develop a basic model that will serve as a starting point for an extended model. Our first approach to predict future returns is a simple linear regression on one single feature - the 7-day momentum. Why linear regression? First, this technique is the underlying mechanism of many advanced models that are often generalizations of the linear case. Therefore, it is a good fit for a starting point. In general, linear regression aims to identify linear relationships between input data and the target dimension. In our case the input data is price data, trading volume, market capitalization, and every predictor that is derived from those - returns for instance. The target dimension that we are going to predict is the return of the next day. The simplicity of linear mappings make results easy to interpret, whereby the model still remains powerful since many observed relationships are indeed of linear nature. Moreover, linear regression indicates the strength of those linear ties what makes it a helpful tool for decision making.
 
 **7-Day Momentum Signal Strategy**
 
@@ -279,7 +279,7 @@ This setup aligns with our objective of forecasting next-day returns based on re
 **Baseline Predictive Model: 7d-Momentum-Only**
 
 ```{r results='asis', echo = FALSE}
-# 1. Compute 7-day momentum
+# Compute 7-day momentum
 df_daily <- df_daily %>%
   mutate(
     momentum_7d = log(close_price / lag(close_price, 7)),
@@ -288,10 +288,9 @@ df_daily <- df_daily %>%
 
 
 
-# split training and test data
+# Split training and test data (4:1 split)
 df_stdmodel <- df_daily %>% drop_na()
 
-# Get training and test data (4:1 split)
 df_train_stdmodel <- df_stdmodel[1:(floor(nrow(df_stdmodel)*0.8)),]
 df_test_stdmodel <- df_stdmodel[floor((nrow(df_stdmodel)*0.8) + 1):nrow(df_stdmodel),]
 
@@ -303,11 +302,10 @@ y_train_stdmodel <- df_train_stdmodel$target_return
 x_test_stdmodel <- df_test_stdmodel$momentum_7d
 
 
-#standard model with 7-day-momentum
+# Linear regression on 7-day-momentum
 model_standard <- lm(target_return ~ momentum_7d, data = df_train_stdmodel)
 
-#summary(model_standard)
-
+# Output model summary
 stargazer(model_standard,
           type = "latex",
           title = "Regression Results: 7-Day Momentum Strategy",
@@ -320,13 +318,12 @@ stargazer(model_standard,
           header = FALSE)
 ```
 
-# Draft from Erich:
-The linear regression results in an estimation for the intercept of 0.001 having a p-value of 0.427 and a slope of 0.002 having a p-value of 0.806 Since the p-value for the slope clearly exceeds 0.05 (the threshold, which is commonly used for acceptance), we can not conclude a linear relation between the 7-day momentum and the future day return. Actually, this aligns with our finding in the ACF analysis, where no linear dependency between a lag of 7 days and the future day return was indicated. Thus, this result calls for an extended approach of future return prediction.
+The linear regression results in an estimation for the intercept of 0.001 having a p-value of 0.427 and a slope of 0.002 having a p-value of 0.806. Since the p-value for the slope clearly exceeds 0.05 (the threshold, which is commonly used for acceptance), we can not conclude a linear relation between the 7-day momentum and the future day return. Actually, this aligns with our finding in the ACF analysis, where no linear dependency between a lag of 7 days and the future day return was indicated. Thus, this result calls for an extended approach of future return prediction.
 
 
 ## 4. Extension 
 
-**Extension of our OLS**
+**Extension of our Linear Regression Model**
 
 To enhance the predictive power of the benchmark model, we extend it by incorporating a broader set of explanatory variables that capture not only short- and medium-term price dynamics, but also market sentiment, technical indicators, and inter-asset relationships. These include:
 
@@ -360,10 +357,10 @@ r_{t+1} &:= \log\left(\frac{P_{t+1}}{P_t}\right) \quad \text{(one-day-ahead LINK
 \text{BTC Volatility}_t^{(7)} &:= \text{std} \left( r^{\text{BTC}}_{t-6}, \ldots, r^{\text{BTC}}_t \right)
 \end{align*}
 The ETH-based predictors are constructed analogously to the BTC-based predictors.
-The parametrization of this model is estimated via Ordinary Least Squares (OLS) on the in-sample period. By incorporating this rich feature set, we aim to capture a range of return drivers including price trends, market overreaction, volatility clustering, inter-market dependencies, and behavioral biases tied to trading weekdays.
+In a next step we perform a linear regression on all of these features. Therefore, the parametrization of this model is estimated via Ordinary Least Squares (OLS) on the in-sample period. By incorporating this rich feature set, we aim to capture a range of return drivers including price trends, market overreaction, volatility clustering, inter-market dependencies, and behavioral biases tied to trading weekdays. Note that model is trained on a training set, which includes the first 80% of available LINK data. This allows us to backtest the model in an out-of-sample manner in a later step.
 
 ```{r, echo = FALSE}
-#We load the bitcoin and ethereum data on our own because we want to have the full time period aligned with the Chainlink data we have
+# We include external bitcoin and ethereum data
 
 # Source https://coinmarketcap.com/currencies/bitcoin/historical-data/
 own_btc_prices <- read.csv("data/pricedata/Daily_Bitcoin_Own.csv", sep = ";") 
@@ -372,53 +369,53 @@ own_eth_prices <- read.csv("data/pricedata/ETH_pricedata.csv", sep = ";")
 # Source https://etherscan.io/chart/gasprice
 own_eth_gas <- read.csv("data/pricedata/ETH_daily_gas.csv", sep = ",")
 
-#compute BTC-related features
+# Compute BTC-related features
 own_btc_prices <- own_btc_prices %>% 
-  mutate(date = as.Date(timestamp)) %>% #Convert time stamp to Date format
+  mutate(date = as.Date(timestamp)) %>% # Convert time stamp to Date format
   mutate(
-    btc_return = log(close / lag(close)), #Daily log return of BTC
-    btc_momentum_7d = log(close / lag(close, 7)), #7-day log momentum of BTC
+    btc_return = log(close / lag(close)), # Daily log return of BTC
+    btc_momentum_7d = log(close / lag(close, 7)), # 7-day log momentum of BTC
     btc_volatility_7d = rollapply(log(close / lag(close)), 
-                                  width = 7, FUN = sd, fill = NA, align = "right") #rolling 7-day volatility (std dev of log retung)
+                                  width = 7, FUN = sd, fill = NA, align = "right") # Rolling 7-day volatility (std dev of log retung)
   ) %>%
-  select(date, btc_return, btc_momentum_7d, btc_volatility_7d) #keep only relevant columns
+  select(date, btc_return, btc_momentum_7d, btc_volatility_7d)
 
-#preprocess ETH price data
+# Preprocess ETH price data
 own_eth_prices <- own_eth_prices %>%
-  mutate(date = as.POSIXct(timeClose, format = "%Y-%m-%d")) %>% #convert timeClose to POSIXct
-  select(date, open, high, low, close, volume, marketCap) %>% #keep only relevant columns
-  arrange(date) # sort from old to new
+  mutate(date = as.POSIXct(timeClose, format = "%Y-%m-%d")) %>% # Convert timeClose to POSIXct
+  select(date, open, high, low, close, volume, marketCap) %>% 
+  arrange(date)
 
 own_eth_gas <- own_eth_gas %>% 
-  rename(date = Date.UTC., gas_wei = Value..Wei.) %>% #Rename columns for consistency
-  mutate(date = as.POSIXct(date, format = "%m/%d/%Y")) %>% #convert date column
-  select(date, gas_wei) %>% #keep only relevant columns
-  arrange(date) # sort from old to new
+  rename(date = Date.UTC., gas_wei = Value..Wei.) %>% # Rename columns for consistency
+  mutate(date = as.POSIXct(date, format = "%m/%d/%Y")) %>% 
+  select(date, gas_wei) %>% 
+  arrange(date) 
 
-#combine eth price and gas data and compute ETH-related features
+# Combine eth price and gas data and compute ETH-related features
 eth_data <- own_eth_prices %>%  
   left_join(own_eth_gas, by = "date") %>%
   mutate(
     fees_dollar = gas_wei*(10^-18)*60000*close, #factor 60,000 for ERC20 token transfer
     
-    #ETH price-based features
-    eth_return = log(close / lag(close)), #daily log return
-    eth_momentum_7d = log(close / lag(close, 7)), #7-day momentum
+    # ETH price-based features
+    eth_return = log(close / lag(close)),
+    eth_momentum_7d = log(close / lag(close, 7)), 
     eth_volatility_7d = rollapply(log(close / lag(close)),
-                                  width = 7, FUN = sd, fill = NA, align = "right"), #7-day rolling volatility
+                                  width = 7, FUN = sd, fill = NA, align = "right"),
     
-    #ETH volume-based features
+    # ETH volume-based features
     eth_return_volume = log(volume / lag(volume)),
     eth_momentum_7d_volume = log(volume / lag(volume, 7)),
     eth_volatility_7d_volume = rollapply(log(volume / lag(volume)),
                                   width = 7, FUN = sd, fill = NA, align = "right"),
     
-    #ETH market cap-based features
+    # ETH market cap-based features
     eth_return_marketcap = log(marketCap / lag(marketCap)),
     eth_momentum_7d_marketcap = log(marketCap / lag(marketCap, 7)),
     eth_volatility_7d_marketcap = rollapply(log(marketCap / lag(marketCap)),
                                   width = 7, FUN = sd, fill = NA, align = "right"),
-    #ETH gas fee-based features
+    # ETH gas fee-based features
     eth_return_gas = log(gas_wei / lag(gas_wei)),
     eth_momentum_7d_gas = log(gas_wei / lag(gas_wei, 7)),
     eth_volatility_7d_gas = rollapply(log(gas_wei / lag(gas_wei)),
@@ -426,7 +423,7 @@ eth_data <- own_eth_prices %>%
   )
 
 
-# Merge all external features into the main CHAINLINK daily dataset 
+# Merge all external features into the main LINK daily dataset 
 df_daily <- df_daily %>%  
   left_join(own_btc_prices, by = "date")  %>%
   left_join(eth_data, by = "date")
@@ -434,7 +431,7 @@ df_daily <- df_daily %>%
 ```
 
 ```{r, echo = FALSE}
-# Step 1: Add features to the dataset
+# Add features (technical indicators) to the dataset
 df_extended <- df_daily %>%
   mutate(
     # Momentum over 3, 7 and 14 days
@@ -456,21 +453,21 @@ df_extended <- df_daily %>%
     sma_7 = SMA(close_price, n = 7),
     sma_14 = SMA(close_price, n = 14),
     
-    # difference between short and long Moving average (trend strength)
+    # Difference between short and long Moving average (trend strength)
     sma_diff = sma_7 - sma_14,
     
-    #MACD
+    # MACD
     macd_val = data.frame(MACD(close_price, nFast = 12, nSlow = 26, nSig = 9))$macd,
     macd_signal = data.frame(MACD(close_price, nFast = 12, nSlow = 26, nSig = 9))$signal,
     macd_hist = macd_val - macd_signal,
     
-    #ATR (Average True Range) over 14 days
+    # ATR (Average True Range) over 14 days
     atr_14 = data.frame(ATR(HLC = data.frame(
       high = high_price,
       low = low_price,
       close = close_price), n = 14))$atr,
     
-    #weekdays
+    # Weekdays
     weekday = wday(date, label = TRUE, abbr = TRUE),
          monday = ifelse(weekday == "Mon", 1, 0),
          tuesday = ifelse(weekday == "Tue", 1, 0),
@@ -490,7 +487,7 @@ df_train_extended <- df_extended[1:(floor(nrow(df_extended)*0.8)),]
 df_test_extended <- df_extended[floor((nrow(df_extended)*0.8) + 1):nrow(df_extended),]
 
 
-# Step 2: Fit the extended linear model
+# Fit the extended linear model
 model_extended <- lm(target_return ~ 
                        momentum_3d + momentum_7d + momentum_14d + 
                             return_lag1 + return_lag2 + 
@@ -506,26 +503,6 @@ model_extended <- lm(target_return ~
                             eth_return_gas + eth_momentum_7d_gas + 
                             eth_volatility_7d_gas,
                      data = df_train_extended)
-
-#show model
-# stargazer(model_extended,
-#           type = "latex",
-#           title = "Extended Regression Model: Predicting LINK Returns with Crypto Features",
-#           label = "tab:extended_model",
-#           dep.var.labels = "Target Return",
-#           covariate.labels = c("Intercept",
-#                                "Momentum (3d)", "Momentum (7d)", "Momentum (14d)",
-#                                "Lagged Return (1d)", "Lagged Return (2d)", "Volatility (7d)",
-#                                "RSI (14)", "SMA Diff", "MACD Value", "MACD Histogram", "ATR (14)",
-#                                "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
-#                                "BTC Return", "BTC Momentum (7d)", "BTC Volatility (7d)",
-#                                "ETH Return", "ETH Momentum (7d)", "ETH Volatility (7d)",
-#                                "ETH Volume", "ETH Momentum (7d) x Volume", "ETH Volatility (7d) x Volume",
-#                                "ETH Market Cap", "ETH Momentum (7d) x Market Cap", "ETH Volatility (7d) x Market Cap",
-#                                "ETH Gas", "ETH Momentum (7d) x Gas", "ETH Volatility (7d) x Gas"),
-#           digits = 4,
-#           float.env = "table",
-#           header = FALSE)
 
 # Extract model statistics
 model_stats <- glance(model_extended)
@@ -611,8 +588,6 @@ kbl(#"latex",
   threeparttable = TRUE,
   escape = FALSE  # KEY: Allows math formatting
 )
-
-
 
 ```
 
