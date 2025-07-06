@@ -927,10 +927,10 @@ This approach emphasizes selective participation in the market based on the mode
 # Implementation of an In-and-Out trading strategy
 
 # compute 25% and 75% quantiles for signal derivation
-qtiles_test_target <- quantile(df_test_extended$target_return, probs = c(0.25, 0.75), na.rm = TRUE)
-qtiles_test_benchmark <- quantile(df_test_extended$pred_benchmark, probs = c(0.25, 0.75), na.rm = TRUE)
-qtiles_test_extended <- quantile(df_test_extended$pred_extended, probs = c(0.25, 0.75), na.rm = TRUE)
-qtiles_test_lasso <- quantile(df_test_extended$pred_lasso, probs = c(0.25, 0.75), na.rm = TRUE)
+qtiles_test_target <- quantile(df_train_extended$target_return, probs = c(0.25, 0.75), na.rm = TRUE)
+qtiles_test_benchmark <- quantile(df_train_extended$pred_benchmark, probs = c(0.25, 0.75), na.rm = TRUE)
+qtiles_test_extended <- quantile(df_train_extended$pred_extended, probs = c(0.25, 0.75), na.rm = TRUE)
+qtiles_test_lasso <- quantile(df_train_extended$pred_lasso, probs = c(0.25, 0.75), na.rm = TRUE)
 
 
 # append trading signals (IN if 75% quantile is exceeded)
