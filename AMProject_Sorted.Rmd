@@ -122,29 +122,31 @@ plot_1 <- ggplot(df_daily) + aes(x=date, y=close_price) +
        y = "Close Price (USD)"
        ) +
   scale_x_date(date_labels = "%Y", date_breaks = "1 year") +
-  theme_minimal(base_size = 13)
+  theme_minimal(base_size = 10)
 
 #plot daily log returns 
 plot_2 <- ggplot(df_daily %>% drop_na(), aes(x = date, y = log_return)) +
-  geom_point(color = "#990000", size = 1.5, alpha = 0.7) + 
+  geom_point(color = "#990000", size = 1.2, alpha = 0.7) + 
   labs(
     title = "Daily Log Returns of Chainlink",
     x = "Date",
     y = "Log Return"
   ) +
   scale_x_date(date_labels = "%Y", date_breaks = "1 year") +
-  theme_minimal(base_size = 13)
+  theme_minimal(base_size = 10)
 
 #show the plots side-by-side
-grid.arrange(plot_1, plot_2, nrow = 1, ncol = 2)
+grid.arrange(plot_1, plot_2, nrow = 2, ncol = 1)
 
 
 ```
 
-Figure 1 shows two plots side-by-side: 
+Figure 1 shows two plots: 
 
-- The **left panel** displays the daily closing price of CHAINLINK in USD since 2018, highlighting the asset’s strong bull run during the 2020–2021 crypto boom and its subsequent volatility.
-- The **right panel** shows the corresponding daily log returns, capturing the day-to-day fluctuations in price.
+\begin{itemize}
+  \item The **upper panel** displays the daily closing price of CHAINLINK in USD since 2018, highlighting the asset’s strong bull run during the 2020–2021 crypto boom and its subsequent volatility.
+  \item The **lower panel** shows the corresponding daily log returns, capturing the day-to-day fluctuations in price.
+\end{itemize}
 
 Having a first glance on the LINK's price data, we see that there is not much movement until 2020, followed by sharp increases by factor ten in the consecutive nine months. The price reaches its peak of over 50\$/LINK in May 2021. In the second half of 2021 until April 2022 the data shows volatile behavior but with significant decrease on average. A trendless period of relatively low volatility, starting in May 2022 and ending in October 2023, shows prices between 5 and 10\$/LINK. Finally, we observe another increase at the end of 2023 and beginning of 2024.
 
@@ -215,14 +217,38 @@ To evaluate the temporal dependence structure of Chainlink’s daily log returns
 
 ```{r acf_plot, fig.cap = "ACF of Daily Log Returns for Chainlink", fig.align = "center", echo = FALSE, message = FALSE, warning = FALSE}
 # Plot ACF of daily log returns
-acf(
+# acf(
+#   na.omit(df_daily$log_return),
+#   main = "Autocorrelation of Daily Log Returns (LINK)",
+#   col = "#1f78b4",      # blue line
+#   lwd = 2,              # thicker line
+#   cex.lab = 1.2,        # label size
+#   cex.main = 1.3        # title size
+# )
+
+#We do it like that, sto exclude lag 0 from the plot. That makes the other lags clearer visible 
+
+acf_obj <- acf(
   na.omit(df_daily$log_return),
-  main = "Autocorrelation of Daily Log Returns (LINK)",
-  col = "#1f78b4",      # blue line
-  lwd = 2,              # thicker line
-  cex.lab = 1.2,        # label size
-  cex.main = 1.3        # title size
+  plot = FALSE
 )
+
+# Plot manually without lag 0
+plot(
+  acf_obj$lag[-1],
+  acf_obj$acf[-1],
+  type = "h",
+  lwd = 2,
+  col = "#1f78b4",
+  xlab = "Lag",
+  ylab = "ACF",
+  main = "Autocorrelation of Daily Log Returns (LINK)",
+  cex.lab = 1.2,
+  cex.main = 1.2
+)
+
+# Add horizontal line at zero
+abline(h = 0)
 ```
 
 #TODO: don't show 0 on x-axis
@@ -683,7 +709,8 @@ results_is <- tibble(
 #results_is
 
 results_is %>%
-  mutate(across(where(is.numeric), round, digits = 4)) %>%  # round all numeric columns
+  #mutate(across(where(is.numeric), round, digits = 4)) %>%  # round all numeric columns
+  mutate(across(where(is.numeric), \(x) round(x, digits = 4))) %>%
   kable("latex", booktabs = TRUE,
         caption = "In-Sample Performance of Benchmark, Extended, and Lasso Models",
         label = "tab:in_sample_perf") %>%
@@ -770,9 +797,37 @@ results_oos %>%
 
 #TODO Interpret OOS Results
 
+The benchmark model fails to generalize out-of-sample (R²_OS = 0), confirming the weak predictive power of raw 7-day momentum. In contrast, the LASSO model improves out-of-sample accuracy substantially (R²_OS = 0.34), likely due to its ability to regularize noise and select relevant predictors.
+
+
+To evaluate the trading performance of our predictive models beyond return forecasting, we implement a simple In-and-Out (I/O) strategy. This rule-based strategy enters the market ("IN") only when the model predicts strong positive returns—i.e., when the predicted value exceeds the 75th percentile of the respective model’s prediction distribution. Otherwise, the model stays out of the market ("OUT").
+
+**Signal Construction:**
+
+We construct separate trading signals for:
+
+\begin{itemize}
+  \item the Benchmark model (7-day momentum),
+  \item the Extended Linear Regression model,
+  \item the LASSO model, and
+  \item the actual target returns (for reference).
+\end{itemize}
+
+The procedure:
+
+\begin{itemize}
+  \item 1 (enter position) if the predicted return exceeds the threshold
+  \item 0 (stay out) otherwise
+\end{itemize}
+
+
+Compute daily strategy returns by multiplying the lagged signal with the actual log return.
+Apply a fixed fee per position change to simulate realistic trading costs.
+
+This approach emphasizes selective participation in the market based on the model's confidence and allows us to assess whether models can not only predict returns but also generate economically meaningful signals.
 
 #TODO: check the code 
-```{r}
+```{r lasso_actvspred_plot, fig.cap = "Actual vs Predicted Target Returns (LASSO)", fig.align = "center", echo = FALSE, message = FALSE, warning = FALSE}
 # Implementation of an In-and-Out trading strategy
 
 # compute 25% and 75% quantiles for signal derivation
@@ -892,7 +947,7 @@ plot_3_inout <- ggplot(df_test_extended, aes(x = date)) +
   geom_line(aes(y = (cum_fees_extended), color = "Linear Regression")) +
   geom_line(aes(y = (cum_fees_lasso), color = "LASSO")) +
   labs(title = "Cumulative Fees: LASSO vs 7-Day Momentum vs LR",
-       x = "Date", y = "Cumulative Log Return") +
+       x = "Date", y = "Cumulative Fees (USD)") +
   scale_color_manual(values = c("Buy&Hold" = "black",
                                 "7-Day Momentum" = "blue",
                                 "Linear Regression" = "green",
@@ -904,7 +959,17 @@ plot_3_inout <- ggplot(df_test_extended, aes(x = date)) +
 
 plot_1_inout
 ```
-```{r, echo = FALSE}
+
+Figure 3 visualizes the relationship between actual and predicted one-day-ahead returns from the LASSO regression model. Each point represents an observation in the test set, with the x-axis showing the realized return and the y-axis the model’s predicted return. The dashed red line indicates the 45° line of perfect predictions, while the blue horizontal line marks the 75th percentile of predicted returns.
+
+We observe a moderate clustering of points around the diagonal, suggesting that the LASSO model captures some predictive structure in the return dynamics, particularly for returns near zero. However, deviations from the red line highlight prediction errors, especially in the tails.
+
+The green region denotes instances where the predicted and actual returns have the same sign—i.e., the model correctly forecasts the return direction. These cases reflect successful directional predictions, which are critical for long/short trading strategies. In contrast, the red-shaded area highlights false positives, where the model incorrectly predicts a positive return, but the actual return is negative.
+
+While the spread around the diagonal indicates that exact return magnitudes are not always accurately predicted, the high density in the green region supports the model’s strong directional accuracy (see Table 6). This suggests that the LASSO model is well-suited for sign-based trading rules, even if its point predictions are noisy.
+
+
+```{r lasso_cum_plot, fig.cap = "Cumulative Performance of Trading Strategies (Log Returns and Fees)", fig.align = "center", echo = FALSE, message = FALSE, warning = FALSE}
 #show the other two plots separately 
 
 grid.arrange(plot_2_inout, plot_3_inout, ncol = 1, nrow = 2)
@@ -912,50 +977,70 @@ grid.arrange(plot_2_inout, plot_3_inout, ncol = 1, nrow = 2)
 
 #TODO describe the plots
 
+The **top panel** of Figure 4 compares the cumulative log returns of four strategies:
+
+\begin{itemize}
+  \item LASSO model (dark red) achieves the highest return, significantly outperforming all others.
+  \item Linear Regression (green) performs closely behind LASSO.
+  \item The 7-Day Momentum (blue) lags far behind, reflecting its weak signal quality.
+  \item Buy-and-Hold (black) delivers minimal returns with no active decision-making.
+\end{itemize}
 
 
+The **bottom panel** shows cumulative trading fees incurred due to signal changes:
+
+\begin{itemize}
+  \item Both LASSO and Linear Regression generate more trades and hence higher fees.
+  \item Despite these higher transaction costs, their net performance (gross return - fees) is still superior.
+  \item The 7-Day Momentum strategy results in fewer position switches and lower fees but offers little economic value due to poor returns.
+\end{itemize}
 
 
+Overall, the LASSO model demonstrates superior performance, not only in terms of return predictability but also as a trading signal generator, even after accounting for transaction costs.
 
 
-
-#TODO: find the right location for the following code chunk: 
-
-```{r}
+```{r, echo = FALSE}
 # 1) Compute daily strategy returns & cumulative log-returns
-df_test_extended <- df_test_extended %>%
-  mutate(
-    # daily strategy log-returns = signal × next-day log return
-    ret_benchmark      = dir_benchmark  * target_return,
-    ret_extended       = dir_extended   * target_return,
-    ret_lasso          = dir_lasso      * target_return,
-    # cumulative log returns
-    cum_ret_benchmark  = cumsum(coalesce(ret_benchmark,  0)),
-    cum_ret_extended   = cumsum(coalesce(ret_extended,   0)),
-    cum_ret_lasso      = cumsum(coalesce(ret_lasso,      0)),
-    cum_ret_bh         = cumsum(coalesce(log_return,      0))
-  )
-
-# 2) Pivot to long format
-df_plot <- df_test_extended %>%
-  select(date,
-         "Buy & Hold"      = cum_ret_bh,
-        "Benchmark"         = cum_ret_benchmark,
-         "Extended Model"    = cum_ret_extended,
-        "Lasso Model"       = cum_ret_lasso
-  ) %>%
-  pivot_longer(-date, names_to = "Strategy", values_to = "Cumulative_Log_Return")
-
-# 3) Plot
-ggplot(df_plot, aes(x = date, y = Cumulative_Log_Return, color = Strategy)) +
-  geom_line(linewidth = 1) +
-  labs(
-    title = "Cumulative Log Returns: Buy-&-Hold vs. Benchmark, Extended & Lasso",
-    x     = "Date",
-    y     = "Cumulative Log Return",
-    color = NULL
-  ) +
-  theme_minimal(base_size = 13)
+# df_test_extended <- df_test_extended %>%
+#   mutate(
+#     # daily strategy log-returns = signal × next-day log return
+#     ret_benchmark      = dir_benchmark  * target_return,
+#     ret_extended       = dir_extended   * target_return,
+#     ret_lasso          = dir_lasso      * target_return,
+#     # cumulative log returns
+#     cum_ret_benchmark  = cumsum(coalesce(ret_benchmark,  0)),
+#     cum_ret_extended   = cumsum(coalesce(ret_extended,   0)),
+#     cum_ret_lasso      = cumsum(coalesce(ret_lasso,      0)),
+#     cum_ret_bh         = cumsum(coalesce(log_return,      0))
+#   )
+# 
+# # 2) Pivot to long format
+# df_plot <- df_test_extended %>%
+#   select(date,
+#          "Buy & Hold"      = cum_ret_bh,
+#         "Benchmark"         = cum_ret_benchmark,
+#          "Extended Model"    = cum_ret_extended,
+#         "Lasso Model"       = cum_ret_lasso
+#   ) %>%
+#   pivot_longer(-date, names_to = "Strategy", values_to = "Cumulative_Log_Return")
+# 
+# # 3) Plot
+# ggplot(df_plot, aes(x = date, y = Cumulative_Log_Return, color = Strategy)) +
+#   geom_line(linewidth = 1) +
+#   scale_color_manual(
+#     values = c(
+#       "Benchmark" = "blue",   # Blue
+#       "Buy & Hold"     = "black",
+#       "Lasso Model"          = "darkred",
+#       "Extended Model" = "green")
+#     ) +
+#   labs(
+#     title = "Cumulative Log Returns: Buy-&-Hold vs. Benchmark, Extended & Lasso",
+#     x     = "Date",
+#     y     = "Cumulative Log Return",
+#     color = NULL
+#   ) +
+#   theme_minimal()
 ```
 
 #TODO: Interpret plot results
