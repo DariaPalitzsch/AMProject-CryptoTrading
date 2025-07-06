@@ -1,7 +1,7 @@
 ---
 title: "AMProject_Sorted"
-author: "Laura Gullicksen, Erich Gozebina, Daria Palitzsch"
-date: "23/05/2025"
+author: "Erich Gozebina, Daria Palitzsch, Laura Gullicksen"
+date: "07/08/2025"
 output:
   pdf_document:
     number_sections: false
@@ -51,7 +51,17 @@ Sys.setenv(TZ='UCT') #set timezone!
 
 ## 1. Introduction
 
-#TODO: write Intro
+Cryptocurrency markets are known for their extreme volatility, behavioral trading dynamics, and weak-form inefficiencies. Unlike traditional financial markets, they operate 24/7, are highly speculative, and are heavily influenced by sentiment, momentum, and macro-crypto developments. This environment creates both substantial risk and potential reward, especially for strategies that can extract signals from the surrounding noise.
+
+In this report, we design and evaluate a short-term trading strategy for Chainlink (LINK), a top-25 cryptocurrency that serves as a decentralized oracle network within the DeFi ecosystem. Chainlink stands out as a compelling asset due to its high liquidity, large market cap, and fundamental utility, which make it less susceptible to manipulation and more likely to exhibit predictable price dynamics.
+Our objective is to develop a predictive model for daily returns based on economically interpretable variables, with a focus on 7-day momentum, technical indicators, and macro-crypto factors such as Bitcoin return. We implement this model using ordinary least squares (OLS) and Lasso regression, allowing us to balance interpretability with robustness by filtering out noisy predictors. Zaremba et al. (2021), for example, found that short-term momentum effects are more pronounced in large, liquid cryptocurrencies, supporting the suitability of LINK for a trend-based predictive strategy. Its historical trading behavior further confirms the presence of exploitable short-term return persistence.
+To assess the practical viability of the strategy, we apply a rolling-window backtest using daily data from October 2017 to April 2024. We incorporate realistic assumptions, including transaction costs, and benchmark the strategy’s performance against both buy-and-hold and naïve momentum approaches. 
+Our contribution lies in demonstrating that even in a highly volatile and seemingly chaotic market like crypto, structured, data-driven strategies can identify persistent short-term patterns. By combining economic intuition with statistical learning, we provide a transparent and replicable framework for active management in digital asset markets.
+
+```{r setup, include = FALSE}
+#Zaremba, A., Bilgin, M. H., Long, H., Mercik, A., & Szczygielski, J. J. (2021). Up or down? Short-term reversal, momentum, and liquidity effects in cryptocurrency markets. International Review of Financial Analysis, 78, 101908.
+```
+
 
 
 ## 2. Data & Descriptive Analysis
@@ -318,7 +328,9 @@ stargazer(model_standard,
           header = FALSE)
 ```
 
-The linear regression results in an estimation for the intercept of 0.001 having a p-value of 0.427 and a slope of 0.002 having a p-value of 0.806. Since the p-value for the slope clearly exceeds 0.05 (the threshold, which is commonly used for acceptance), we can not conclude a linear relation between the 7-day momentum and the future day return. Actually, this aligns with our finding in the ACF analysis, where no linear dependency between a lag of 7 days and the future day return was indicated. Thus, this result calls for an extended approach of future return prediction.
+Table 2 presents the results of our OLS regression using 7-day momentum as a predictor of daily strategy returns. While the estimated coefficient for 7-day momentum is positive (0.0013), suggesting that higher past-week returns are associated with slightly higher next-day returns, the effect is not statistically significant at conventional levels. The intercept is also insignificant, indicating no meaningful average return when momentum is neutral. The explanatory power of the model is extremely low, meaning that it performs no better, and in fact slightly worse, than simply predicting the mean return. The F-statistic is also not significant, implying that the model lacks predictive validity in its current form. Additionally, the p-value for the slope clearly exceeds 0.05 (the threshold, which is commonly used for acceptance), we can not conclude a linear relation between the 7-day momentum and the future day return. 
+
+While the 7-day momentum coefficient is directionally consistent with momentum theory (positive trend continuation), the statistical insignificance and poor model fit highlight a key limitation: momentum alone is not enough to predict returns in such a volatile and noisy market. This result is aligned with the autocorrelation analysis (Figure 2), which showed no significant linear dependencies. The underperformance of the current model reinforces the need for extending the model to include additional explanatory features and employing a Lasso regression to avoid overfitting and improve predictive power. Although the positive sign of the momentum coefficient aligns with the underlying economic intuition, the weak performance highlights the need for a more comprehensive approach.
 
 
 ## 4. Extension 
@@ -591,7 +603,12 @@ kbl(#"latex",
 
 ```
 
-#TODO: Description and interpretation of output -> Laura 
+Table 3 presents the output of our extended OLS regression model, where the dependent variable is the daily return of Chainlink. This model includes not only LINK-specific momentum indicators but also technical indicators, calendar dummies, and a broad set of macro-crypto variables derived from Bitcoin (BTC) and Ethereum (ETH). The purpose of this model is to evaluate whether combining crypto-specific and cross-asset features can improve return predictability over the basic 7-day momentum model (as seen in Table 2). Several predictors emerge as statistically significant. The strongest within-asset signals are the one-day and two-day lagged LINK returns, both of which have positive and significant coefficients (0.0796 and 0.0920), indicating short-term positive autocorrelation. Interestingly, the coefficient for 3-day momentum is significantly negative, suggesting some evidence of short-term reversal over that horizon. In contrast, longer momentum terms (7-day and 14-day) are negative but not statistically significant.
+
+From a cross-asset perspective, the results reveal that Bitcoin returns are negatively associated with LINK returns (-1.0111), pointing to potential substitution effects or temporary decoupling between the two assets. Similarly, Bitcoin volatility has a negative and significant impact, implying that increased uncertainty in BTC reduces returns for LINK. A similar pattern is observed for Ethereum returns, which also carry a negative and marginally significant coefficient (-1.0707). Notably, the interaction between Ethereum momentum and market cap is positive and significant, suggesting that when Ethereum trends upward in conjunction with growing market cap, it positively influences LINK performance. 
+
+The overall model fit improves substantially compared to the single momentum specification: the \( R^2 \) increases to 0.342, and the adjusted \( R^2 \) to 0.331, indicating that over 33% of the variation of LINK returns is now explained. The model’s F-statistic (30.97) confirms the joint significance of the regressors. 
+
 
 **LASSO Model**
 
