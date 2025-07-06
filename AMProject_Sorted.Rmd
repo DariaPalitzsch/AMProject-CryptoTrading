@@ -39,6 +39,7 @@ library(glmnet)
 library(kableExtra)
 library(gridExtra)
 library(TTR)
+library(broom)
 
 ## setting the correct time zone
 Sys.setlocale("LC_TIME", "English") #set language for dates etc.
@@ -250,8 +251,6 @@ plot(
 # Add horizontal line at zero
 abline(h = 0)
 ```
-
-#TODO: don't show 0 on x-axis
 
 The autocorrelation function (ACF) of daily log returns in Figure 2 shows no statistically significant linear dependence at any lag, indicating that past returns do not linearly predict future returns. This finding supports the weak-form Efficient Market Hypothesis (EMH). However, it does not rule out the presence of exploitable patterns captured by non-linear or directional indicators. Therefore, we proceed with a momentum-based trading strategy, leveraging the sign of multi-day past returns to generate long or short signals.
 
@@ -508,25 +507,113 @@ model_extended <- lm(target_return ~
                             eth_volatility_7d_gas,
                      data = df_train_extended)
 
-#show model as stargazer output
-stargazer(model_extended,
-          type = "latex",
-          title = "Extended Regression Model: Predicting LINK Returns with Crypto Features",
-          label = "tab:extended_model",
-          dep.var.labels = "Target Return",
-          covariate.labels = c("Intercept",
-                               "Momentum (3d)", "Momentum (7d)", "Momentum (14d)",
-                               "Lagged Return (1d)", "Lagged Return (2d)", "Volatility (7d)",
-                               "RSI (14)", "SMA Diff", "MACD Value", "MACD Histogram", "ATR (14)",
-                               "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
-                               "BTC Return", "BTC Momentum (7d)", "BTC Volatility (7d)",
-                               "ETH Return", "ETH Momentum (7d)", "ETH Volatility (7d)",
-                               "ETH Volume", "ETH Momentum (7d) x Volume", "ETH Volatility (7d) x Volume",
-                               "ETH Market Cap", "ETH Momentum (7d) x Market Cap", "ETH Volatility (7d) x Market Cap",
-                               "ETH Gas", "ETH Momentum (7d) x Gas", "ETH Volatility (7d) x Gas"),
-          digits = 4,
-          float.env = "table",
-          header = FALSE)
+#show model
+# stargazer(model_extended,
+#           type = "latex",
+#           title = "Extended Regression Model: Predicting LINK Returns with Crypto Features",
+#           label = "tab:extended_model",
+#           dep.var.labels = "Target Return",
+#           covariate.labels = c("Intercept",
+#                                "Momentum (3d)", "Momentum (7d)", "Momentum (14d)",
+#                                "Lagged Return (1d)", "Lagged Return (2d)", "Volatility (7d)",
+#                                "RSI (14)", "SMA Diff", "MACD Value", "MACD Histogram", "ATR (14)",
+#                                "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+#                                "BTC Return", "BTC Momentum (7d)", "BTC Volatility (7d)",
+#                                "ETH Return", "ETH Momentum (7d)", "ETH Volatility (7d)",
+#                                "ETH Volume", "ETH Momentum (7d) x Volume", "ETH Volatility (7d) x Volume",
+#                                "ETH Market Cap", "ETH Momentum (7d) x Market Cap", "ETH Volatility (7d) x Market Cap",
+#                                "ETH Gas", "ETH Momentum (7d) x Gas", "ETH Volatility (7d) x Gas"),
+#           digits = 4,
+#           float.env = "table",
+#           header = FALSE)
+
+# Extract model statistics
+model_stats <- glance(model_extended)
+
+r2 <- sprintf("%.3f", model_stats$r.squared)
+adj_r2 <- sprintf("%.3f", model_stats$adj.r.squared)
+f_stat <- sprintf("%.2f", model_stats$statistic)
+
+
+table3_df <- tidy(model_extended) %>%
+  mutate(
+    stars = case_when(
+      p.value < 0.001 ~ "***",
+      p.value < 0.01 ~ "**",
+      p.value < 0.05 ~ "*",
+      p.value < 0.1 ~ ".",
+      TRUE ~ ""
+    ),
+    Estimate_SE = paste0(
+      sprintf("%.4f", estimate), stars, "\\(",
+      sprintf("%.4f", std.error), ")"
+    )
+  ) %>%
+  select(term, Estimate_SE)
+
+# Optional: rename terms
+pretty_names <- c(
+  "(Intercept)" = "Intercept",
+  "momentum_3d" = "Momentum (3d)",
+  "momentum_7d" = "Momentum (7d)",
+  "momentum_14d" = "Momentum (14d)",
+  "return_lag1" = "Lagged Return (1d)",
+  "return_lag2" = "Lagged Return (2d)",
+  "volatility_7d" = "Volatility (7d)",
+  "rsi_14" = "RSI (14)",
+  "sma_diff" = "SMA Diff",
+  "macd_val" = "MACD Value",
+  "macd_hist" = "MACD Histogram",
+  "atr_14" = "ATR (14)",
+  "monday" = "Monday",
+  "tuesday" = "Tuesday",
+  "wednesday" = "Wednesday",
+  "thursday" = "Thursday",
+  "friday" = "Friday",
+  "btc_return" = "BTC Return",
+  "btc_momentum_7d" = "BTC Momentum (7d)",
+  "btc_volatility_7d" = "BTC Volatility (7d)",
+  "eth_return" = "ETH Return",
+  "eth_momentum_7d" = "ETH Momentum (7d)",
+  "eth_volatility_7d" = "ETH Volatility (7d)",
+  "eth_return_volume" = "ETH Volume",
+  "eth_momentum_7d_volume" = "ETH Momentum (7d) × Volume",
+  "eth_volatility_7d_volume" = "ETH Volatility (7d) × Volume",
+  "eth_return_marketcap" = "ETH Market Cap",
+  "eth_momentum_7d_marketcap" = "ETH Momentum (7d) × Market Cap",
+  "eth_volatility_7d_marketcap" = "ETH Volatility (7d) × Market Cap",
+  "eth_return_gas" = "ETH Gas",
+  "eth_momentum_7d_gas" = "ETH Momentum (7d) × Gas",
+  "eth_volatility_7d_gas" = "ETH Volatility (7d) × Gas"
+)
+
+table3_df$term <- pretty_names[table3_df$term]
+
+# Create kableExtra table
+kbl(#"latex",
+    table3_df,
+    col.names = c("", "Target Return"),
+    booktabs = TRUE,
+    caption = "Extended Regression Model: Predicting LINK Returns with Crypto Features",
+    align = "lr"
+  ) %>%
+  kable_styling(
+    latex_options = c("hold_position", "striped")
+  ) %>%
+  footnote(
+  general = paste0(
+    "Significance levels: *** $p < 0.01$; ** $p < 0.05$; * $p < 0.1$.\\\\ ",
+    "Model statistics: $R^2 = ", r2,
+    "$, $R^2_{adj} = ", adj_r2,
+    "$, F statistic = ", f_stat, "."
+  ),
+  general_title = "",
+  threeparttable = TRUE,
+  escape = FALSE  # KEY: Allows math formatting
+)
+
+
+
 ```
 
 #TODO: Description and interpretation of output -> Laura 
@@ -609,6 +696,7 @@ nice_names <- c(
 
 # Apply renaming
 lasso_table$Predictor <- dplyr::recode(lasso_table$Predictor, !!!nice_names)
+
 
 
 kable(lasso_table, format = "latex", booktabs = TRUE, 
@@ -709,12 +797,15 @@ results_is <- tibble(
 #results_is
 
 results_is %>%
-  #mutate(across(where(is.numeric), round, digits = 4)) %>%  # round all numeric columns
   mutate(across(where(is.numeric), \(x) round(x, digits = 4))) %>%
+  mutate(Adj_R2 = sprintf("%.2f\\%%", Adj_R2 * 100)) %>% 
   kable("latex", booktabs = TRUE,
         caption = "In-Sample Performance of Benchmark, Extended, and Lasso Models",
-        label = "tab:in_sample_perf") %>%
-  kable_styling(latex_options = c("striped", "hold_position", "scale_down"))
+        label = "tab:in_sample_perf",
+        align = "lrrr",
+        escape = FALSE,
+        col.names = c("Model", "MSE", "Directional Accuracy", "$\\mathrm{R}^2_{\\mathrm{adj}}$")) %>%
+  kable_styling(latex_options = c("striped", "hold_position"))
 
 ```
 
@@ -790,7 +881,12 @@ results_oos <- results_oos %>%
 #results_oos
 
 results_oos %>%
-  kable(format = "latex", digits = 4, caption = "Out-of-Sample Model Evaluation") %>%
+  mutate(R2_OS = sprintf("%.2f\\%%", R2_OS * 100)) %>% 
+  kable(format = "latex", digits = 4, caption = "Out-of-Sample Model Evaluation",
+        booktabs = TRUE, 
+        align = "lrrr",
+        escape = FALSE,
+        col.names = c("Model", "MSE", "Directional Accuracy", "$\\mathrm{R}^2_{\\mathrm{OOS}}$")) %>%
   kable_styling(latex_options = c("hold_position", "striped"))
 
 ```

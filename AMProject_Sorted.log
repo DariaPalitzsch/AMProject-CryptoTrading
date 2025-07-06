@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023) (preloaded format=pdflatex 2023.11.26)  6 JUL 2025 06:47
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023) (preloaded format=pdflatex 2023.11.26)  6 JUL 2025 08:59
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -797,9 +797,12 @@ ed on input line 267.
 (pdftex.def)             Requested size: 438.63766pt x 286.06805pt.
 [4] [5 <./AMProject_Sorted_files/figure-latex/acf_plot-1.pdf>] [6]
 
-LaTeX Warning: Float too large for page by 916.76796pt on input line 535.
+LaTeX Warning: `!h' float specifier changed to `!ht'.
 
 [7] [8] [9]
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
 
 LaTeX Warning: `!h' float specifier changed to `!ht'.
 
@@ -810,7 +813,7 @@ File: AMProject_Sorted_files/figure-latex/lasso_actvspred_plot-1.pdf Graphic fi
 le (type pdf)
 <use AMProject_Sorted_files/figure-latex/lasso_actvspred_plot-1.pdf>
 Package pdftex.def Info: AMProject_Sorted_files/figure-latex/lasso_actvspred_pl
-ot-1.pdf  used on input line 741.
+ot-1.pdf  used on input line 673.
 (pdftex.def)             Requested size: 453.6939pt x 315.17673pt.
 [12 <./AMProject_Sorted_files/figure-latex/lasso_actvspred_plot-1.pdf>]
 <AMProject_Sorted_files/figure-latex/lasso_cum_plot-1.pdf, id=127, 453.695pt x 
@@ -819,18 +822,18 @@ File: AMProject_Sorted_files/figure-latex/lasso_cum_plot-1.pdf Graphic file (ty
 pe pdf)
 <use AMProject_Sorted_files/figure-latex/lasso_cum_plot-1.pdf>
 Package pdftex.def Info: AMProject_Sorted_files/figure-latex/lasso_cum_plot-1.p
-df  used on input line 777.
+df  used on input line 709.
 (pdftex.def)             Requested size: 453.6939pt x 313.16922pt.
 [13 <./AMProject_Sorted_files/figure-latex/lasso_cum_plot-1.pdf>] [14] (./AMPro
 ject_Sorted.aux) ) 
 Here is how much of TeX's memory you used:
- 16557 strings out of 476025
- 270068 string characters out of 5790016
- 1876388 words of memory out of 5000000
- 36497 multiletter control sequences out of 15000+600000
+ 16563 strings out of 476025
+ 270150 string characters out of 5790016
+ 1868388 words of memory out of 5000000
+ 36503 multiletter control sequences out of 15000+600000
  576280 words of font info for 153 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 77i,13n,81p,1205b,532s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 77i,13n,81p,1205b,536s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/local/texlive/2023/texmf-dist/fonts/type1/public/lm/lmb
 x12.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/lm/lmex10.pfb></
 usr/local/texlive/2023/texmf-dist/fonts/type1/public/lm/lmmi12.pfb></usr/local/
@@ -842,7 +845,7 @@ e1/public/lm/lmr6.pfb></usr/local/texlive/2023/texmf-dist/fonts/type1/public/lm
 </usr/local/texlive/2023/texmf-dist/fonts/type1/public/lm/lmsy10.pfb></usr/loca
 l/texlive/2023/texmf-dist/fonts/type1/public/lm/lmsy8.pfb></usr/local/texlive/2
 023/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on AMProject_Sorted.pdf (14 pages, 413457 bytes).
+Output written on AMProject_Sorted.pdf (14 pages, 414887 bytes).
 PDF statistics:
  248 PDF objects out of 1000 (max. 8388607)
  191 compressed objects within 2 object streams
