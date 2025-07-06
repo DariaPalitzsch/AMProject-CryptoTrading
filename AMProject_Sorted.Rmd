@@ -1014,7 +1014,7 @@ plot_2_inout <-  ggplot(df_test_extended, aes(x = date)) +
   geom_line(aes(y = exp(cum_extended_return), color = "Linear Regression")) +
   geom_line(aes(y = exp(cum_lasso_return), color = "LASSO")) +
   labs(title = "Cumulative Returns: LASSO vs 7-Day Momentum vs LR",
-       x = "Date", y = "Cumulative Log Return") +
+       x = "Date", y = "Cumulative Return") +
   scale_color_manual(values = c("Buy&Hold" = "black",
                                 "7-Day Momentum" = "blue",
                                 "Linear Regression" = "green",
