@@ -47,8 +47,6 @@ Sys.setenv(TZ='UCT') #set timezone!
 
 ```
 
-#TODO: Insert Captions for all Figures and Tables
-
 ## 1. Introduction
 
 Cryptocurrency markets are known for their extreme volatility, behavioral trading dynamics, and weak-form inefficiencies. Unlike traditional financial markets, they operate 24/7, are highly speculative, and are heavily influenced by sentiment, momentum, and macro-crypto developments. This environment creates both substantial risk and potential reward, especially for strategies that can extract signals from the surrounding noise.
@@ -68,7 +66,7 @@ Our contribution lies in demonstrating that even in a highly volatile and seemin
 
 **Data Aggregation and Strategy Frequency**
 
-For our project we chose the a dataset that provides price data of Chainlink's native LINK token at \textit{hourly frequency}. While such high-frequency data offers more granular insights, we chose to \textbf{aggregate the data to daily frequency} for the following reasons: 
+For our project we chose a dataset that provides price data of Chainlink's native LINK token at \textit{hourly frequency}. While such high-frequency data offers more granular insights, we chose to \textbf{aggregate the data to daily frequency} for the following reasons: 
 
 1. **Alignment with Trading Strategy**: Our core trading strategy is based on a **7-day momentum signal**, which inherently reflects **weekly price trends**. Applying such a signal at an hourly resolution would not be consistent with the strategy's time horizon. 
 
@@ -155,11 +153,11 @@ grid.arrange(plot_1, plot_2, nrow = 2, ncol = 1)
 Figure 1 shows two plots: 
 
 \begin{itemize}
-  \item The **upper panel** displays the daily closing price of LINK in USD since 2018, highlighting the asset’s strong bull run during the 2020–2021 crypto boom and its subsequent volatility.
-  \item The **lower panel** shows the corresponding daily log returns, capturing the day-to-day fluctuations in price.
+  \item The \textbf{upper panel} displays the daily closing price of LINK in USD since 2018, highlighting the asset’s strong bull run during the 2020–2021 crypto boom and its subsequent volatility.
+  \item The \textbf{lower panel} shows the corresponding daily log returns, capturing the day-to-day fluctuations in price.
 \end{itemize}
 
-Having a first glance on the LINK's price data, we see that there is not much movement until 2020, followed by sharp increases by factor ten in the consecutive nine months. The price reaches its peak of over 50\$/LINK in May 2021. In the second half of 2021 until April 2022 the data shows volatile behavior but with significant decrease on average. A trendless period of relatively low volatility, starting in May 2022 and ending in October 2023, shows prices between 5 and 10\$/LINK. Finally, we observe another increase at the end of 2023 and beginning of 2024.
+Having a first glance on the LINK's price data, we see that there is not much movement until 2020, followed by sharp increases by a factor of ten in the consecutive nine months. The price reaches its peak of over 50\$/LINK in May 2021. In the second half of 2021 until April 2022 the data shows volatile behavior but with significant decrease on average. A trendless period of relatively low volatility, starting in May 2022 and ending in October 2023, shows prices between 5 and 10\$/LINK. Finally, we observe another increase at the end of 2023 and beginning of 2024.
 
 Moving away from non-stationary price data to stationary log returns, we observe a higher dispersion in the earlier years, suggesting a higher volatility then. Furthermore, most of points cluster around zero, indicating that there is no significant long term drift. Outliers, both positive and negative, imply extreme relative price movements, especially in the earlier period. Another important insight is the changing variance since the density of the points increases in the second half of the time window.
 
@@ -223,8 +221,7 @@ summary_stas_long_formatted %>%
 
 The summary statistics in Table 1 reveal that the mean daily log return of LINK is close to zero, while the standard deviation is relatively high, reflecting the well-known volatility of cryptocurrency markets. The minimum and maximum returns further highlight the presence of large price swings. The wide range between the minimum and maximum close prices illustrates the strong appreciation potential, but also the riskiness of the asset over the observation period.
 
-
-To evaluate the temporal dependence structure of LINK’s daily log returns, we plot the autocorrelation function (ACF). The ACF helps determine whether past returns exhibit statistically significant correlation with future returns — a key consideration when assessing the potential for return predictability.
+To evaluate the temporal dependence structure of LINK’s daily log returns, we analyze the autocorrelation function (ACF) shown in Figure 2.
 
 ```{r acf_plot, fig.cap = "ACF of Daily Log Returns for LINK", fig.align = "center", echo = FALSE, message = FALSE, warning = FALSE}
 # Plot ACF of daily log returns
@@ -262,7 +259,7 @@ plot(
 abline(h = 0)
 ```
 
-The autocorrelation function (ACF) of daily log returns in Figure 2 shows no statistically significant linear dependence at any lag within 33 days, indicating that past returns do not linearly predict future returns. This finding supports the weak-form Efficient Market Hypothesis (EMH). However, it does not rule out the presence of exploitable patterns captured by non-linear or directional indicators. Therefore, we proceed with a momentum-based trading strategy, leveraging the sign of multi-day past returns to generate long or short signals.
+The ACF reveals no statistically significant linear dependence across the first 33 lags, suggesting that past returns do not linearly predict future returns—consistent with the weak-form Efficient Market Hypothesis (EMH). Nevertheless, this result does not preclude the existence of non-linear or directional patterns. Motivated by this, we proceed with a momentum-based trading strategy that exploits the sign of multi-day past returns to generate long or short signals.
 
 ## 3. Standard Model 
 
@@ -369,7 +366,7 @@ r_{t+1} &:= \log\left(\frac{P_{t+1}}{P_t}\right) \quad \text{(one-day-ahead LINK
 \text{BTC Volatility}_t^{(7)} &:= \text{std} \left( r^{\text{BTC}}_{t-6}, \ldots, r^{\text{BTC}}_t \right)
 \end{align*}
 The ETH-based predictors are constructed analogously to the BTC-based predictors.
-In a next step we perform a linear regression on all of these features. Therefore, the parametrization of this model is estimated via Ordinary Least Squares (OLS) on the in-sample period. By incorporating this rich feature set, we aim to capture a range of return drivers including price trends, market overreaction, volatility clustering, inter-market dependencies, and behavioral biases tied to trading weekdays. Note that model is trained on a training set, which includes the first 80% of available LINK data. This allows us to backtest the model in an out-of-sample manner in a later step.
+In a next step we perform a linear regression on all of these features. Therefore, the parametrization of this model is estimated via Ordinary Least Squares (OLS) on the in-sample period. By incorporating this rich feature set, we aim to capture a range of return drivers including price trends, market overreaction, volatility clustering, inter-market dependencies, and behavioral biases tied to trading weekdays. Note that the model is trained on a training set, which includes the first 80% of available LINK data. This allows us to backtest the model in an out-of-sample manner in a later step.
 
 ```{r, echo = FALSE}
 # We include external bitcoin and ethereum data
@@ -880,7 +877,7 @@ results_oos %>%
 
 #TODO Interpret OOS Results
 
-The benchmark model fails to generalize out-of-sample (R²_OS = 0), confirming the weak predictive power of raw 7-day momentum. In contrast, the LASSO model improves out-of-sample accuracy substantially (R²_OS = 0.34), likely due to its ability to regularize noise and select relevant predictors.
+The benchmark model fails to generalize out-of-sample (\( R^2_{\text{OOS}} \) = 0), confirming the weak predictive power of raw 7-day momentum. In contrast, the LASSO model improves out-of-sample accuracy substantially (\( R^2_{\text{OOS}} \) = 0.34), likely due to its ability to regularize noise and select relevant predictors.
 
 
 To evaluate the trading performance of our predictive models beyond return forecasting, we implement a simple In-and-Out (I/O) strategy. This rule-based strategy enters the market ("IN") only when the model predicts strong positive returns — i.e., when the predicted value exceeds the 75th percentile of the respective model’s prediction distribution. Otherwise, the model takes the money out of the market ("OUT").
@@ -909,7 +906,6 @@ Additionally, we estimate the trading costs by applying a fixed fee per position
 
 This approach emphasizes selective participation in the market based on the model's confidence and allows us to assess whether models can not only predict returns but also generate economically meaningful signals.
 
-#TODO: check the code 
 ```{r lasso_actvspred_plot, fig.cap = "Actual vs Predicted Target Returns (LASSO)", fig.align = "center", echo = FALSE, message = FALSE, warning = FALSE}
 # Implementation of an In-and-Out trading strategy
 
