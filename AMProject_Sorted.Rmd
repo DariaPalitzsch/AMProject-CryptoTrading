@@ -78,15 +78,13 @@ For our project we chose a dataset that provides price data of Chainlink's nativ
 
 4. **Interpretability and Robustness**: Daily returns are more interpretable and robust across backtests. Most financial and technical indicators (e.g., RSI, MACD, SMA) are commonly applied on daily charts. 
 
-Our base strategy issues long/short signals based on the past 7-day log return of LINK, i.e., 
+Let \(p_t\) denote the price of LINK at day t. Our base strategy issues long/short signals based on the past 7-day log return of LINK: 
 
 \[
-\text{Momentum}_t^{(7)} = \log\left(\frac{P_t}{P_{t-7}}\right)
+\text{Momentum}_t^{(7)} = \log\left(\frac{p_t}{p_{t-7}}\right)
 \]
 
-This naturally assumes daily data, as each observation reflects the cumulative return over the previous seven days.
-
-In summary, aggregating to daily frequency is a theoretically and practically sound choice. It ensures consistency between our signal construction, model estimation, and backtesting logic.
+This naturally assumes daily data, as each observation reflects the cumulative return over the previous seven days. In summary, aggregating to daily frequency is a theoretically and practically sound choice. It ensures consistency between our signal construction, model estimation, and backtesting logic.
 
 
 ```{r, echo = FALSE}
