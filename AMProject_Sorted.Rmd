@@ -1,7 +1,8 @@
 ---
-title: "AMProject_Sorted"
+subtitle: "Project Class Asset Management - Ulm University"
+title: "Predicting LINK Returns: A Data-Driven Approach to Short-Term Crypto Trading"
 author: "Erich Gozebina, Daria Palitzsch, Laura Gullicksen"
-date: "07/08/2025"
+date: "July 8, 2025"
 output:
   pdf_document:
     number_sections: false
@@ -61,19 +62,19 @@ Our contribution lies in demonstrating that even in a highly volatile and seemin
 #Zaremba, A., Bilgin, M. H., Long, H., Mercik, A., & Szczygielski, J. J. (2021). Up or down? Short-term reversal, momentum, and liquidity effects in cryptocurrency markets. International Review of Financial Analysis, 78, 101908.
 ```
 
-
+\newpage
 
 ## 2. Data & Descriptive Analysis
 
 **Data Aggregation and Strategy Frequency**
 
-For our project we chose a dataset that provides price data of Chainlink's native LINK token at \textit{hourly frequency}. While such high-frequency data offers more granular insights, we chose to \textbf{aggregate the data to daily frequency} for the following reasons: 
+For our project we chose a dataset that provides price data of Chainlink's native LINK token at hourly frequency. While such high-frequency data offers more granular insights, we chose to aggregate the data to daily frequency for the following reasons: 
 
-1. **Alignment with Trading Strategy**: Our core trading strategy is based on a **7-day momentum signal**, which inherently reflects **weekly price trends**. Applying such a signal at an hourly resolution would not be consistent with the strategy's time horizon. 
+1. **Alignment with Trading Strategy**: Our core trading strategy is based on a 7-day momentum signal, which inherently reflects weekly price trends. Applying such a signal at an hourly resolution would not be consistent with the strategy's time horizon. 
 
-2. **Noise Reduction**: Hourly crypto data can be highly volatile and noisy. Aggregating to daily returns reduces **microstructure noise, short-term reversals**, and **Whale-driven price spikes**, improving the signal-to-noise ratio. 
+2. **Noise Reduction**: Hourly crypto data can be highly volatile and noisy. Aggregating to daily returns reduces microstructure noise, short-term reversals, and Whale-driven price spikes, improving the signal-to-noise ratio. 
 
-3. **Practical Execution Perspective**: A strategy that rebalances daily is **more realistic to implement**, considering gas fees, latency and operational constraints on decentralized exchanges or CEX APIs. 
+3. **Practical Execution Perspective**: A strategy that rebalances daily is more realistic to implement, considering gas fees, latency and operational constraints on decentralized exchanges or CEX APIs. 
 
 4. **Interpretability and Robustness**: Daily returns are more interpretable and robust across backtests. Most financial and technical indicators (e.g., RSI, MACD, SMA) are commonly applied on daily charts. 
 
@@ -168,7 +169,7 @@ Why did we chose log returns over canonical (arithmetic) returns? Using log retu
 \tilde{r}_t = \log(r_t + 1) = \log\left(\frac{p_t}{p_{t-1}}\right)
 \]
 
-The underlying reason is the assumption that prices of an financial asset are log-normally distributed. This is reasonable since the log-normal distribution does not allow for negative values, which is also true for most asset prices (particularly for crypto currencies). Moreover, historical data provides evidence that the log-normal distribution gives a good fit for the prices of many financial assets. In reverse, since the logarithm function amplifies returns that are close to -1 more than positive returns, log-returns are distributed more symmetrically than canonical returns and indeed follow a normal distribution. Additionally, if returns are small, log returns approximate canonical returns very well. For x close to zero, it holds that
+The underlying reason is the assumption that prices of an financial asset are log-normally distributed. This is reasonable since the log-normal distribution does not allow for negative values, which is also true for most asset prices (particularly for cryptocurrencies). Moreover, historical data provides evidence that the log-normal distribution gives a good fit for the prices of many financial assets. In reverse, since the logarithm function amplifies returns that are close to -1 more than positive returns, log-returns are distributed more symmetrically than canonical returns and indeed follow a normal distribution. Additionally, if returns are small, log returns approximate canonical returns very well. For x close to zero, it holds that
 
 \[
 \log(x+1) \approx x.
@@ -262,13 +263,14 @@ abline(h = 0)
 
 But, the ACF reveals no statistically significant linear dependence across the first 33 lags, suggesting that past returns do not linearly predict future returns—consistent with the weak-form Efficient Market Hypothesis (EMH). We conclude that there are no hidden periodicities within a 33-days time window. Nevertheless, this result does not preclude the existence of non-linear or directional patterns. Motivated by this, we proceed with a momentum-based trading strategy that exploits the sign of multi-day past returns to generate long or short signals.
 
+\newpage
 ## 3. Standard Model 
 
 We develop a basic model that will serve as a starting point for an extended model. Our first approach to predict future returns is a simple linear regression on one single feature - the 7-day momentum. Why linear regression? First, this technique is the underlying mechanism of many advanced models that are often generalizations of the linear case. Therefore, it is a good fit for a starting point. In general, linear regression aims to identify linear relationships between input data and the target dimension. In our case the input data is price data, trading volume, market capitalization, and every predictor that is derived from those - returns for instance. The target dimension that we are going to predict is the return of the next day. The simplicity of linear mappings make results easy to interpret, whereby the model still remains powerful since many observed relationships are indeed of linear nature. Moreover, linear regression indicates the strength of those linear ties what makes it a helpful tool for decision making.
 
 **7-Day Momentum Signal Strategy**
 
-To quantify short-term trends in LINK’s price, we construct a \textbf{7-day momentum signal} defined as the logarithmic return over the past seven trading days:
+To quantify short-term trends in LINK’s price, we construct a 7-day momentum signal defined as the logarithmic return over the past seven trading days:
 
 \[
 \text{Momentum}_t^{(7)} = \log\left(\frac{P_t}{P_{t-7}}\right)
@@ -330,7 +332,7 @@ Table 2 presents the results of our OLS regression using 7-day momentum as a pre
 
 While the 7-day momentum coefficient is directionally consistent with momentum theory (positive trend continuation), the statistical insignificance and poor model fit highlight a key limitation: momentum alone is not enough to predict returns in such a volatile and noisy market. This result is aligned with the autocorrelation analysis (Figure 2), which showed no significant linear dependence between the log return and its 7-day lag. The underperformance of the current model reinforces the need for extending the model to include additional explanatory features and employing a Lasso regression to avoid overfitting and improve predictive power. Although the positive sign of the momentum coefficient aligns with the underlying economic intuition, the weak performance highlights the need for a more comprehensive approach.
 
-
+\newpage
 ## 4. Extension 
 
 **Extension of our Linear Regression Model**
@@ -350,7 +352,7 @@ To enhance the predictive power of the benchmark model, we extend it by incorpor
   \item Ethereum gas fees: daily gas return, 7-day gas momentum, and 7-day gas volatility.
 \end{itemize}
 
-The extended predictive regression model is specified as:
+For the calculation of the technical indicators we reference Appendix A. The extended predictive regression model is specified as:
 
 \[
 r_{t+1} = \alpha + \sum_{h \in \{3,7,14\}} \beta_h \cdot \text{Momentum}_t^{(h)} + \gamma_1 \cdot r_t + \gamma_2 \cdot r_{t-1} + \delta \cdot \text{Volatility}_t^{(7)} + \sum_j \theta_j \cdot X_{t}^{(j)} + \varepsilon_{t+1}
@@ -678,8 +680,8 @@ lasso_table <- data.frame(
 
 nice_names <- c(
   "(Intercept)" = "Intercept",
-  "btc_return" = "Bitcoin Daily Return",
-  "eth_momentum_7d_volume" = "Ethereum 7-Day Volume Momentum"
+  "btc_return" = "BTC Daily Return",
+  "eth_momentum_7d_volume" = "ETH 7-Day Volume Momentum"
 )
 
 # Apply renaming
@@ -705,6 +707,7 @@ The LASSO regression identified two non-zero predictors for explaining LINK retu
 
 Remarkably, the ETH 7-day volume momentum was not statistically significant in the extended OLS model. This points out a key strength of the LASSO technique. While p-values from the OLS model reflect only marginal significance, LASSO aims to minimize prediction error with a penalty that encourages sparsity, taking combined predictive contribution into account. Therefore, LASSO can identify relevant explanatory variables that are non-significant in their marginal influence and drop significant ones as well. We investigate whether reducing features is fruitful by providing a comprehensive backtesting analysis.
 
+\newpage
 ## 5. Forecasting & Backtesting
 
 **In-Sample testing**
@@ -800,7 +803,6 @@ results_is %>%
 
 ```
 
-#TODO: interpret the In-Sample Results
 
 Table 5 shows that the Extended and LASSO models have superior in-sample performance compared to the Benchmark model. The Benchmark model has the highest mean squared error (MSE = 0.0053) and the lowest directional accuracy (0.5051). This indicates poor predictive precision and a limited ability to correctly predict the direction of change. Furthermore, its negative adjusted \(R^2\) (-0.05%) suggests that it fails to explain the variation in the dependent variable and performs worse than a simple mean model.
 
@@ -886,7 +888,6 @@ results_oos %>%
 
 ```
 
-#TODO Interpret OOS Results
 
 The benchmark model fails to generalize out-of-sample (\( R^2_{\text{OOS}} \) = 0), confirming the weak predictive power of raw 7-day momentum. In contrast, the LASSO model improves out-of-sample accuracy substantially (\( R^2_{\text{OOS}} \) = 0.34), likely due to its ability to regularize noise and select relevant predictors.
 
@@ -1063,7 +1064,6 @@ While the spread around the diagonal indicates that exact return magnitudes are 
 grid.arrange(plot_2_inout, plot_3_inout, ncol = 1, nrow = 2)
 ```
 
-#TODO describe the plots
 
 The **top panel** of Figure 4 compares the cumulative returns of four strategies:
 
@@ -1079,12 +1079,20 @@ The **bottom panel** shows cumulative trading fees incurred due to signal change
 
 \begin{itemize}
   \item Both LASSO and Linear Regression generate more trades and hence higher fees.
-  \item Despite these higher transaction costs, their net performance (gross return - fees) is still superior.
+  \item Despite these higher transaction costs, their net performance (gross return - fees) still can be superior if the initial investment is chosen high enough.
   \item The 7-Day Momentum strategy results in fewer position switches and lower fees but offers little economic value due to poor returns.
 \end{itemize}
 
 
-Overall, the LASSO model demonstrates superior performance, not only in terms of return predictability but also as a trading signal generator, even after accounting for transaction costs.
+Overall, the LASSO model demonstrates superior performance, not only in terms of return predictability but also as a trading signal generator. In practice, one must account for transaction costs as well.
+
+**Limitations**
+
+However, the model does face certain limitations when transitioning to real-world application. One key challenge lies in the assumption of perfect trade execution at the daily closing price. In highly volatile markets, the actual execution price often deviates from the expected one due to slippage, which can impact strategy performance. This effect may be further intensified in periods of low liquidity, where execution latency and order book depth become critical factors.
+
+Additionally, the LASSO-based approach, by design, captures only linear relationships between LINK returns and the selected features. While this promotes interpretability and robustness, it also limits the model’s ability to reflect the nonlinear dynamics that frequently characterize cryptocurrency markets. As a result, certain predictive patterns may remain unexplored.
+
+These limitations, however, open promising avenues for further enhancement. Future iterations of the strategy could integrate execution-aware trading algorithms and explore nonlinear modeling techniques, such as deep neural networks or tree-based ensembles, to better capture complex market behavior. By addressing these challenges, the strategy could evolve into a more powerful and realistic tool for active crypto asset management.
 
 
 ```{r, echo = FALSE}
@@ -1131,12 +1139,6 @@ Overall, the LASSO model demonstrates superior performance, not only in terms of
 #   theme_minimal()
 ```
 
-#TODO: Interpret plot results
-
-
-
-
-## Optional: Rolling Lasso Approach
 
 ```{r, echo = FALSE}
 
@@ -1240,11 +1242,53 @@ Overall, the LASSO model demonstrates superior performance, not only in terms of
 
 ```
 
+\newpage
 ## 6. Conclusion
 
-Our results demonstrate that short-term predictability in the crypto space is possible using a structured, data-driven approach. We develop and backtest a daily trading strategy for LINK that issues “in” or “out” signals based on predicted next-day returns. The strategy enters the market only when the forecasted return exceeds the model-specific 75th percentile, thereby focusing on high-confidence signals. 
-While a simple 7-day momentum signal proved insufficient, we enhanced performance by incorporating a broad feature set: momentum signals, volatility indicators, cross-asset spillovers, technical indicators, and calendar effects. Our final model uses Lasso regression to select only the most predictive variables and prevent overfitting. The Lasso model achieves the highest out-of-sample \( R^2 \) (33.6%) and directional accuracy (73.6%), outperforming both buy-and-hold and naïve momentum strategies even after accounting for trading costs. 
+Our results demonstrate that short-term predictability in the crypto space is possible using a structured, data-driven approach. We developed and backtested a daily trading strategy for LINK that issued “in” or “out” signals based on predicted next-day returns. The strategy enters the market only when the forecasted return exceeds the model-specific 75th percentile, thereby focusing on high-confidence signals. 
+While a simple 7-day momentum signal proved insufficient, we enhanced performance by incorporating a broad feature set: momentum signals, volatility indicators, cross-asset spillovers, technical indicators, and calendar effects. Our final model uses Lasso regression to select only the most predictive variables and prevent overfitting. The Lasso model achieves the highest out-of-sample \( R^2 \) (33.6%) and directional accuracy (73.6%), outperforming both buy-and-hold and naïve momentum strategies.
+However, we made simplifying assumptions, such as perfect trade execution at the daily close price, which limits the model’s applicability in real-world settings. In practice, slippage and latency can significantly impact returns, especially in volatile or illiquid markets. Additionally, the model captures only linear relationships, potentially missing complex market dynamics. These limitations emphasize opportunities for further enhancement, such as incorporating deep neural networks to better model nonlinear behavior.
 
+\newpage
+## A Appendix
+
+**14-Day Relative Strength Index (RSI)**
+
+The RSI is an index that takes values between 0 and 100. Its computation is derived from the relative strength
+\[ RS = \frac{\text{SMMA}(U,n)}{\text{SMMA}(D,n)}\]
+\[\Rightarrow RSI = 100 - \frac{100}{1-\text{RS}}\]
+
+SMMA denotes the smoothed or modified moving average, which is an exponentially weighted average with weighting factor \(1/n\). Moreover,
+\[U = \text{close}_{t-n} - \text{close}_{t}\]
+denoting an upward change and
+\[D = \text{close}_{t} - \text{close}_{t-n}\]
+a downward change respectively.
+
+In our model \(n\) is set to 14. RSI is often associated with overbought and oversold conditions.
+
+
+**Moving Average Convergence/Divergence (MACD)**
+
+The MACD value is computed under the inclusion of exponentially weighted moving averages (EWMA). EWMA assigns exponentially decreasing weights to all past values. The speed of decline depends on the time constant (which we denote in the index) that indicates the number of time steps until the weighting factor reaches \(63.2\%\) of the initial value.
+MACD then is constructed by:
+\[ \text{MACD} = \text{EWMA}_9(\text{EWMA}_{12}-\text{EWMA}_{26}), \]
+where \(\text{EWMA}_n(x)\) denotes the moving average of \(x\) with a time constant of \(n\).
+
+From an economic perspective, the MACD value can reveal changes in the trend of a financial asset, since it captures differences between averages of long- and short-term periods. This makes it a strong predictor, especially for assets with infrequent trend changes.
+
+**Simple Moving Average (SMA) Difference**
+
+By the SMA Difference we denote the difference between a simple moving average of the close prices of the last 7 days and the last 14 days. Let \(\text{SMA}_n\) be the average close price of the last n days. Then
+\[\text{SMA}_{Diff} = \text{SMA}_{7}-\text{SMA}_{14}\]
+
+The SMA Difference indicates short-term momentum relative to the longer-term trend. A positive value suggests recent prices are rising faster than the broader trend, potentially signaling bullish sentiment, while a negative value may indicate emerging bearish pressure.
+
+**Average True Range (ATR)**
+
+ATR measures market volatility by averaging the true range over a specified period. Let \(\text{TR}_t = \max\{ \text{High}_t - \text{Low}_t, |\text{High}_t - \text{Close}_{t-1}|, |\text{Low}_t - \text{Close}_{t-1}| \}\) be the true range on day \(t\). Then the 14-day ATR is defined as:
+\[\text{ATR}_{14} = \frac{1}{14} \sum_{i=0}^{13} \text{TR}_{t-i}\]
+
+The ATR reflects how much an asset typically moves in a day, with higher values indicating greater volatility. It does not indicate price direction but helps assessing risk and adjusting position sizes or stop-loss levels accordingly.
 
 
 
