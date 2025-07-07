@@ -12,6 +12,7 @@ fontsize: 12pt
 geometry: margin=1in
 header-includes:
 - \usepackage{titlesec}
+- \usepackage{dsfont}
 - \titleformat{\section}{\Large\bfseries}{\thesection}{1em}{}
 - \titleformat{\subsection}{\large\bfseries}{\thesubsection}{1em}{}
 - \titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{1em}{}
@@ -718,16 +719,19 @@ We assess in-sample performance using the following criteria:
   \text{MSE} = \frac{1}{n} \sum_{i=1}^{n} (\hat{y}_i - y_i)^2
   \]
   
-  \item \textbf{Adjusted \( R^2 \)}: Indicates the proportion of variance explained by the model, adjusted for the number of predictors.
+  \item \textbf{Coefficient of Determination - Adjusted \( R^2 \)}: Indicates the proportion of variance explained by the model, adjusted for the number of predictors. It estimates the percentage of predictable variations in the dependent variable with respect to the explanatory variables.
+  
   \[
   R_{\text{adj}}^2 = 1 - \frac{\text{RSS}/(n - p - 1)}{\text{TSS}/(n - 1)}
   \]
 
   \item \textbf{Directional Accuracy}: The fraction of times the predicted direction matches the actual direction of returns.
   \[
-  \text{Accuracy} = \frac{1}{n} \sum_{i=1}^{n} \mathbb{1} \left( \text{sign}(\hat{y}_i) = \text{sign}(y_i) \right)
+  \text{Accuracy} = \frac{1}{n} \sum_{i=1}^{n} \mathds{1} \left( \text{sign}(\hat{y}_i) = \text{sign}(y_i) \right)
   \]
 \end{itemize}
+
+Thereby, \(n\) denotes the respective sample size, \(p\) the number of predictors, RSS the residual sum of squares, TSS the total sum of squares, and \(\mathds{1}\) the indicator function. Hence, RSS is the sum of squared prediction errors, while TSS is the sum of squared differences between mean and predictions, which is proportional to the variance.
 
 These metrics are computed for all three models:
 \begin{enumerate}
@@ -764,7 +768,7 @@ tss_lasso <- sum((df_train_extended$target_return - mean(df_train_extended$targe
 r2_lasso <- 1 - rss_lasso / tss_lasso
 
 results_is <- tibble(
-  Model = c("Benchmark", "Extended", "Lasso"),
+  Model = c("Benchmark", "Extended", "LASSO"),
   MSE = c(
     mse(df_train_extended$pred_benchmark, df_train_extended$target_return),
     mse(df_train_extended$pred_extended, df_train_extended$target_return),
@@ -787,7 +791,7 @@ results_is %>%
   mutate(across(where(is.numeric), \(x) round(x, digits = 4))) %>%
   mutate(Adj_R2 = sprintf("%.2f\\%%", Adj_R2 * 100)) %>% 
   kable("latex", booktabs = TRUE,
-        caption = "In-Sample Performance of Benchmark, Extended, and Lasso Models",
+        caption = "In-Sample Performance of Benchmark, Extended, and LASSO Models",
         label = "tab:in_sample_perf",
         align = "lrrr",
         escape = FALSE,
@@ -797,6 +801,10 @@ results_is %>%
 ```
 
 #TODO: interpret the In-Sample Results
+
+Table 5 shows that the Extended and LASSO models have superior in-sample performance compared to the Benchmark model. The Benchmark model has the highest mean squared error (MSE = 0.0053) and the lowest directional accuracy (0.5051). This indicates poor predictive precision and a limited ability to correctly predict the direction of change. Furthermore, its negative adjusted \(R^2\) (-0.05%) suggests that it fails to explain the variation in the dependent variable and performs worse than a simple mean model.
+
+Compared with the Benchmark model, the Extended and Lasso models demonstrate substantially improved performance with notably lower MSEs (0.0035 and 0.0036, respectively) and significantly higher directional accuracy (0.7110 and 0.7142, respectively). Their adjusted \(R^2\) values (33.10% for the Extended model and 32.29% for the Lasso model) suggest that both models meaningfully explain the variance in the data, though the Extended model has a slight advantage. These results confirm that the Extended and Lasso models offer stronger in-sample predictive capabilities than the Benchmark model.
 
 **Out-of-sample testing:**
 
@@ -881,7 +889,6 @@ results_oos %>%
 #TODO Interpret OOS Results
 
 The benchmark model fails to generalize out-of-sample (\( R^2_{\text{OOS}} \) = 0), confirming the weak predictive power of raw 7-day momentum. In contrast, the LASSO model improves out-of-sample accuracy substantially (\( R^2_{\text{OOS}} \) = 0.34), likely due to its ability to regularize noise and select relevant predictors.
-
 
 To evaluate the trading performance of our predictive models beyond return forecasting, we implement a simple In-and-Out (I/O) strategy. This rule-based strategy enters the market ("IN") only when the model predicts strong positive returns — i.e., when the predicted value exceeds the 75th percentile of the respective model’s prediction distribution. Otherwise, the model takes the money out of the market ("OUT").
 
