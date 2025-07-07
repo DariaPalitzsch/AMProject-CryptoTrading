@@ -1232,7 +1232,9 @@ Overall, the LASSO model demonstrates superior performance, not only in terms of
 
 ## 6. Conclusion
 
-#TODO: write conclusion
+Our results demonstrate that short-term predictability in the crypto space is possible using a structured, data-driven approach. We develop and backtest a daily trading strategy for LINK that issues “in” or “out” signals based on predicted next-day returns. The strategy enters the market only when the forecasted return exceeds the model-specific 75th percentile, thereby focusing on high-confidence signals. 
+While a simple 7-day momentum signal proved insufficient, we enhanced performance by incorporating a broad feature set: momentum signals, volatility indicators, cross-asset spillovers, technical indicators, and calendar effects. Our final model uses Lasso regression to select only the most predictive variables and prevent overfitting. The Lasso model achieves the highest out-of-sample \( R^2 \) (33.6%) and directional accuracy (73.6%), outperforming both buy-and-hold and naïve momentum strategies even after accounting for trading costs. 
+
 
 
 
