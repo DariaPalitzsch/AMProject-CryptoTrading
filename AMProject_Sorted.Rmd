@@ -51,7 +51,7 @@ Sys.setenv(TZ='UCT') #set timezone!
 
 Cryptocurrency markets are known for their extreme volatility, behavioral trading dynamics, and weak-form inefficiencies. Unlike traditional financial markets, they operate 24/7, are highly speculative, and are heavily influenced by sentiment, momentum, and macro-crypto developments. This environment creates both substantial risk and potential reward, especially for strategies that can extract signals from the surrounding noise.
 
-In this report, we design and evaluate a short-term trading strategy for Chainlink's native token LINK, a top-25 cryptocurrency that serves as a decentralized oracle network within the DeFi ecosystem. Chainlink stands out as a compelling asset due to its high liquidity, large market cap, and fundamental utility, which make it less susceptible to manipulation and more likely to exhibit predictable price dynamics.
+In this report, we design and evaluate a short-term trading strategy for Chainlink's native token LINK, a top-25 cryptocurrency that serves as a compensation token in a decentralized oracle network within the DeFi ecosystem. LINK stands out as a compelling asset due to its high liquidity, large market cap, and fundamental utility, which make it less susceptible to manipulation and more likely to exhibit predictable price dynamics.
 Our objective is to develop a predictive model for daily returns based on economically interpretable variables, with a focus on 7-day momentum, technical indicators, and macro-crypto factors such as Bitcoin return. We implement this model using linear regression and the LASSO shrinkage method, allowing us to balance interpretability with robustness by filtering out noisy predictors. Zaremba et al. (2021), for example, found that short-term momentum effects are more pronounced in large, liquid cryptocurrencies, supporting the suitability of LINK for a trend-based predictive strategy. Its historical trading behavior further confirms the presence of exploitable short-term return persistence.
 To assess the practical viability of the strategy, we apply a backtest using daily data from October 2017 to April 2024. We incorporate realistic assumptions, including transaction costs, and benchmark the strategy’s performance against both buy-and-hold and naïve momentum approaches. 
 Our contribution lies in demonstrating that even in a highly volatile and seemingly chaotic market like crypto, structured, data-driven strategies can identify persistent short-term patterns. By combining economic intuition with statistical learning, we provide a transparent and replicable framework for active management in digital asset markets.
@@ -173,7 +173,7 @@ The underlying reason is the assumption that prices of an financial asset are lo
 \log(x+1) \approx x.
 \]
 
-We can expect small returns since we shorten the considered time interval to one day. Another important property is the additivity of log returns. It allows us to aggregate returns over multiple periods by summing up the pointwise log returns - a property that canonical returns miss. These properties make log returns more suitable for linear regression models, hypothesis testing, and machine learning regressors.
+Daily returns are small, justifying log-return approximations. Another important property is the additivity of log returns. It allows us to aggregate returns over multiple periods by summing up the pointwise log returns - a property that canonical returns miss. These properties make log returns more suitable for linear regression models, hypothesis testing, and machine learning regressors.
 
 To better understand the characteristics of the LINK price and return time series, we present a set of descriptive statistics based on the daily close prices and the corresponding log returns. These statistics provide a first impression of the dataset’s distribution, dispersion, and extreme values, and help assess whether further preprocessing or transformation steps are necessary before applying predictive models.
 
@@ -219,9 +219,9 @@ summary_stas_long_formatted %>%
 
 ```
 
-The summary statistics in Table 1 reveal that the mean daily log return of LINK is close to zero, while the standard deviation is relatively high, reflecting the well-known volatility of cryptocurrency markets. The minimum and maximum returns further highlight the presence of large price swings. The wide range between the minimum and maximum close prices illustrates the strong appreciation potential, but also the riskiness of the asset over the observation period.
+The summary statistics in Table 1 reveal that our data set contains data of 2,383 days. Furthermore, we observe a mean of the daily close price of \$9.1484 and a standard deviation of \$9.5407. Due to the relatively high standard deviation, the computed mean loses meaningfulness regarding its predictive power. The large gap between minimum and maximum close prices undermines this hypothesis. Turning to log returns, we find that the mean daily log return of LINK is close to zero but still positive, yielding an upward trend within the whole time frame. As for the close prices, the standard deviation of returns is relatively high, reflecting once more the well-known volatility of cryptocurrency markets. The minimum and maximum returns further highlight the presence of large price swings, showing high potential for short-term profits, but also the riskiness of the asset over the observation period.
 
-To evaluate the temporal dependence structure of LINK’s daily log returns, we analyze the autocorrelation function (ACF) shown in Figure 2.
+To evaluate the temporal dependence structure of LINK’s daily log returns, we analyze the autocorrelation function (ACF) shown in Figure 2. Autocorrelation aims to identify repeating patterns that may help us to explain our prediction results.
 
 ```{r acf_plot, fig.cap = "ACF of Daily Log Returns for LINK", fig.align = "center", echo = FALSE, message = FALSE, warning = FALSE}
 # Plot ACF of daily log returns
@@ -259,7 +259,7 @@ plot(
 abline(h = 0)
 ```
 
-The ACF reveals no statistically significant linear dependence across the first 33 lags, suggesting that past returns do not linearly predict future returns—consistent with the weak-form Efficient Market Hypothesis (EMH). Nevertheless, this result does not preclude the existence of non-linear or directional patterns. Motivated by this, we proceed with a momentum-based trading strategy that exploits the sign of multi-day past returns to generate long or short signals.
+But, the ACF reveals no statistically significant linear dependence across the first 33 lags, suggesting that past returns do not linearly predict future returns—consistent with the weak-form Efficient Market Hypothesis (EMH). We conclude that there are no hidden periodicities within a 33-days time window. Nevertheless, this result does not preclude the existence of non-linear or directional patterns. Motivated by this, we proceed with a momentum-based trading strategy that exploits the sign of multi-day past returns to generate long or short signals.
 
 ## 3. Standard Model 
 
@@ -281,7 +281,7 @@ In parallel, we define the \textbf{target return} as the one-day-ahead log retur
 r_{t+1} = \log\left(\frac{P_{t+1}}{P_t}\right)
 \]
 
-This setup aligns with our objective of forecasting next-day returns based on recent trends and other features. While a simple rule-based strategy could be derived by taking positions based on the sign of the predicted return, our approach instead relies on a data-driven prediction model such as linear regression to generate trading signals and evaluate strategy performance.
+This simplistic setup aligns with our objective of forecasting next-day returns based on a recent trend.
 
 **Baseline Predictive Model: 7d-Momentum-Only**
 
@@ -327,7 +327,7 @@ stargazer(model_standard,
 
 Table 2 presents the results of our OLS regression using 7-day momentum as a predictor of daily strategy returns. While the estimated coefficient for 7-day momentum is positive (0.0013), suggesting that higher past-week returns are associated with slightly higher next-day returns, the effect is not statistically significant at conventional levels. The intercept is also insignificant, indicating no meaningful average return when momentum is neutral. The explanatory power of the model is extremely low, meaning that it performs no better, and in fact slightly worse, than simply predicting the mean return. The F-statistic is also not significant, implying that the model lacks predictive validity in its current form. Additionally, the p-value for the slope clearly exceeds 0.05 (the threshold, which is commonly used for acceptance), we can not conclude a linear relation between the 7-day momentum and the future day return. 
 
-While the 7-day momentum coefficient is directionally consistent with momentum theory (positive trend continuation), the statistical insignificance and poor model fit highlight a key limitation: momentum alone is not enough to predict returns in such a volatile and noisy market. This result is aligned with the autocorrelation analysis (Figure 2), which showed no significant linear dependencies. The underperformance of the current model reinforces the need for extending the model to include additional explanatory features and employing a Lasso regression to avoid overfitting and improve predictive power. Although the positive sign of the momentum coefficient aligns with the underlying economic intuition, the weak performance highlights the need for a more comprehensive approach.
+While the 7-day momentum coefficient is directionally consistent with momentum theory (positive trend continuation), the statistical insignificance and poor model fit highlight a key limitation: momentum alone is not enough to predict returns in such a volatile and noisy market. This result is aligned with the autocorrelation analysis (Figure 2), which showed no significant linear dependence between the log return and its 7-day lag. The underperformance of the current model reinforces the need for extending the model to include additional explanatory features and employing a Lasso regression to avoid overfitting and improve predictive power. Although the positive sign of the momentum coefficient aligns with the underlying economic intuition, the weak performance highlights the need for a more comprehensive approach.
 
 
 ## 4. Extension 
@@ -366,7 +366,7 @@ r_{t+1} &:= \log\left(\frac{P_{t+1}}{P_t}\right) \quad \text{(one-day-ahead LINK
 \text{BTC Volatility}_t^{(7)} &:= \text{std} \left( r^{\text{BTC}}_{t-6}, \ldots, r^{\text{BTC}}_t \right)
 \end{align*}
 The ETH-based predictors are constructed analogously to the BTC-based predictors.
-In a next step we perform a linear regression on all of these features. Therefore, the parametrization of this model is estimated via Ordinary Least Squares (OLS) on the in-sample period. By incorporating this rich feature set, we aim to capture a range of return drivers including price trends, market overreaction, volatility clustering, inter-market dependencies, and behavioral biases tied to trading weekdays. Note that the model is trained on a training set, which includes the first 80% of available LINK data. This allows us to backtest the model in an out-of-sample manner in a later step.
+In a next step we perform a linear regression on all of these features. Therefore, the parametrization of this model is estimated via Ordinary Least Squares (OLS) on the in-sample period. By incorporating this rich feature set, we aim to capture a range of return drivers including price trends, market overreaction, volatility clustering, inter-market dependencies, and behavioral biases tied to trading weekdays. Note that the model is trained on a training set, the in-sample period, which includes the first 80% of available LINK data. This allows us to backtest the model in an out-of-sample manner in a later step.
 
 ```{r, echo = FALSE}
 # We include external bitcoin and ethereum data
@@ -600,16 +600,17 @@ kbl(#"latex",
 
 ```
 
-Table 3 presents the output of our extended OLS regression model, where the dependent variable is the daily return of LINK. This model includes not only LINK-specific momentum indicators but also technical indicators, calendar dummies, and a broad set of macro-crypto variables derived from Bitcoin (BTC) and Ethereum (ETH). The purpose of this model is to evaluate whether combining crypto-specific and cross-asset features can improve return predictability over the basic 7-day momentum model (as seen in Table 2). Several predictors emerge as statistically significant. The strongest within-asset signals are the one-day and two-day lagged LINK returns, both of which have positive and significant coefficients (0.0796 and 0.0920), indicating short-term positive autocorrelation. Interestingly, the coefficient for 3-day momentum is significantly negative, suggesting some evidence of short-term reversal over that horizon. In contrast, longer momentum terms (7-day and 14-day) are negative but not statistically significant.
+Table 3 presents the output of our extended OLS regression model, where the dependent variable is the daily log return of LINK. This model includes not only LINK-specific momentum indicators but also technical indicators, calendar dummies, and a broad set of macro-crypto variables derived from Bitcoin (BTC) and Ethereum (ETH). The purpose of this model is to evaluate whether combining crypto-specific and cross-asset features can improve return predictability over the basic 7-day momentum model (as seen in Table 2). Several predictors emerge as statistically significant. The strongest within-asset signals are the one-day and two-day lagged LINK returns, both of which have positive and significant coefficients (0.0796 and 0.0920), indicating short-term positive autocorrelation. Interestingly, the coefficient for 3-day momentum is significantly negative, suggesting some evidence of short-term reversal over that horizon. In contrast, longer momentum terms (7-day and 14-day) are negative but not statistically significant.
 
-From a cross-asset perspective, the results reveal that Bitcoin returns are negatively associated with LINK returns (-1.0111), pointing to potential substitution effects or temporary decoupling between the two assets. Similarly, Bitcoin volatility has a negative and significant impact, implying that increased uncertainty in BTC reduces returns for LINK. A similar pattern is observed for Ethereum returns, which also carry a negative and marginally significant coefficient (-1.0707). Notably, the interaction between Ethereum momentum and market cap is positive and significant, suggesting that when Ethereum trends upward in conjunction with growing market cap, it positively influences LINK performance. 
+From a cross-asset perspective, the results reveal that BTC returns are negatively associated with LINK returns (-1.0111), pointing to potential substitution effects or temporary decoupling between the two assets. This negative correlation seems economically reasonable, since major bull or bear runs in the dominant cryptocurreny BTC appeal traders to readjust portfolio composition, heavily impacting the prices of altcoins. Similarly, BTC volatility has a negative and significant impact, implying that increased uncertainty in BTC reduces returns for LINK. A similar pattern is observed for ETH returns, which also carry a negative and marginally significant coefficient (-1.0707). Notably, the interaction between ETH momentum and market cap is positive and significant, suggesting that when ETH trends upward in conjunction with growing market cap, it positively influences LINK performance. 
 
 The overall model fit improves substantially compared to the single momentum specification: the \( R^2 \) increases to 0.342, and the adjusted \( R^2 \) to 0.331, indicating that over 33% of the variation of LINK returns is now explained. The model’s F-statistic (30.97) confirms the joint significance of the regressors. 
 
+However, the extended OLS regression model considers all features equivalently, yielding poor interpretability. Furthermore, having equal weights is a drawback, because there might exist highly correlated features that sum up to an overweighted influence on the prediction. Similarly, many non-significant features are taken into account, leading to undesired high variance. A solution to these downsides are variable selection and regularization techniques, which we consider in the next section.
 
 **LASSO Model**
 
-To prevent overfitting and perform automatic variable selection, we extend our linear modeling approach using the LASSO (Least Absolute Shrinkage and Selection Operator). The LASSO adds a penalty term to the standard OLS loss function, shrinking some coefficient estimates toward zero. This results in a sparse model that may improve predictive performance, particularly when dealing with multiple correlated predictors. Furthermore, reducing the number of relevant features allows for a better interpretation of simulation results.
+To prevent overfitting and perform automatic variable selection, we extend our linear modeling approach using the Least Absolute Shrinkage and Selection Operator (LASSO). The LASSO adds a penalty term to the standard OLS loss function, shrinking some coefficient estimates toward zero. This results in a sparse model that may improve predictive performance, particularly when dealing with multiple correlated predictors. Furthermore, reducing the number of relevant features allows for a better interpretation of simulation results.
 
 The LASSO estimator is defined as the solution to the following optimization problem:
 
@@ -695,11 +696,13 @@ kable(lasso_table, format = "latex", booktabs = TRUE,
 
 The LASSO regression identified two non-zero predictors for explaining LINK returns:
 
-1. Bitcoin Daily Return (Coefficient: -0.9552): This variable has a large and negative coefficient, indicating that when Bitcoin’s daily return increases by 1 unit (in our scaled units), the predicted return of our LINK-based trading strategy decreases by approximately 0.9552 units, all else equal. This suggests a strong inverse relationship between BTC movements and our strategy, potentially due to hedging behavior or negative spillovers.
+1. Bitcoin Daily Return (Coefficient: -0.9552): This variable has a large and negative coefficient, indicating that when BTC’s daily return increases by 1 unit (in our scaled units), the predicted return of our LINK-based trading strategy decreases by approximately 0.9552 units, all else equal. This suggests a strong inverse relationship between BTC movements and our strategy, potentially due to hedging behavior or negative spillovers, as we have already detailed in the discussion of Table 3.
 
-2. ETH 7-Day Volume Momentum (Coefficient: 0.0019): This predictor captures short-term trends in ETH’s trading volume. The positive but small coefficient implies that higher recent momentum in ETH trading volume is weakly associated with increased LINK returns, possibly due to spillover effects from rising market activity in related tokens.
+2. ETH 7-Day Volume Momentum (Coefficient: 0.0019): This predictor captures short-term trends in ETH’s trading volume. The positive but small coefficient implies that higher recent momentum in ETH trading volume is weakly associated with increased LINK returns, possibly due to spillover effects from rising market activity in related tokens. 
 
 3. Intercept (Coefficient: 0.0014): The intercept represents the model’s baseline prediction when all predictors are zero. Here, it suggests a small positive base return, though in practice this often has less interpretive value than the covariates.
+
+Remarkably, the ETH 7-day volume momentum was not statistically significant in the extended OLS model. This points out a key strength of the LASSO technique. While p-values from the OLS model reflect only marginal significance, LASSO aims to minimize prediction error with a penalty that encourages sparsity, taking combined predictive contribution into account. Therefore, LASSO can identify relevant explanatory variables that are non-significant in their marginal influence and drop significant ones as well. We investigate whether reducing features is fruitful by providing a comprehensive backtesting analysis.
 
 ## 5. Forecasting & Backtesting
 
