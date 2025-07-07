@@ -524,6 +524,7 @@ adj_r2 <- sprintf("%.3f", model_stats$adj.r.squared)
 f_stat <- sprintf("%.2f", model_stats$statistic)
 
 
+#Prepare nice output of significance
 table3_df <- tidy(model_extended) %>%
   mutate(
     stars = case_when(
@@ -540,7 +541,7 @@ table3_df <- tidy(model_extended) %>%
   ) %>%
   select(term, Estimate_SE)
 
-# Optional: rename terms
+#Renaming
 pretty_names <- c(
   "(Intercept)" = "Intercept",
   "momentum_3d" = "Momentum (3d)",
@@ -598,7 +599,7 @@ kbl(#"latex",
   ),
   general_title = "",
   threeparttable = TRUE,
-  escape = FALSE  # KEY: Allows math formatting
+  escape = FALSE  #allows math formatting 
 )
 
 ```
@@ -678,6 +679,7 @@ lasso_table <- data.frame(
   row.names = NULL
 )
 
+#define nice names
 nice_names <- c(
   "(Intercept)" = "Intercept",
   "btc_return" = "BTC Daily Return",
@@ -770,6 +772,7 @@ rss_lasso <- sum((df_train_extended$pred_lasso - df_train_extended$target_return
 tss_lasso <- sum((df_train_extended$target_return - mean(df_train_extended$target_return))^2)
 r2_lasso <- 1 - rss_lasso / tss_lasso
 
+#bring all in sample results together 
 results_is <- tibble(
   Model = c("Benchmark", "Extended", "LASSO"),
   MSE = c(
@@ -814,6 +817,7 @@ After performing the in-sample analysis, we now test our models out-of-sample (O
 
 ```{r, echo = FALSE}
 
+#create the required matrix for LASSO based on the test data 
 X_test <- model.matrix(target_return ~ 
   momentum_3d + momentum_7d + momentum_14d + 
   return_lag1 + return_lag2 + 
@@ -827,6 +831,7 @@ X_test <- model.matrix(target_return ~
   eth_volatility_7d_marketcap +
   eth_return_gas + eth_momentum_7d_gas + eth_volatility_7d_gas,
   data = df_test_extended)[, -1] 
+
 
 df_test_extended <- df_test_extended %>%
   mutate(
@@ -850,7 +855,7 @@ r2_os <- function(actual, predicted, mean_train) {
   1 - ss_res / ss_base
 }
 
-
+#bring all OOS results together into one table 
 results_oos <- tibble(
   Model = c("Benchmark", "Extended", "Lasso"),
   MSE = c(
@@ -877,6 +882,7 @@ results_oos <- results_oos %>%
 
 #results_oos
 
+#show results nicely in a latex table for the knitted file 
 results_oos %>%
   mutate(R2_OS = sprintf("%.2f\\%%", R2_OS * 100)) %>% 
   kable(format = "latex", digits = 4, caption = "Out-of-Sample Model Evaluation",
