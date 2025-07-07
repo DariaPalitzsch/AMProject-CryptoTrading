@@ -271,7 +271,7 @@ We develop a basic model that will serve as a starting point for an extended mod
 To quantify short-term trends in LINK’s price, we construct a 7-day momentum signal defined as the logarithmic return over the past seven trading days:
 
 \[
-\text{Momentum}_t^{(7)} = \log\left(\frac{P_t}{P_{t-7}}\right)
+\text{Momentum}_t^{(7)} = \log\left(\frac{p_t}{p_{t-7}}\right)
 \]
 
 This momentum measure captures the cumulative price movement over one week and serves as a central predictive feature in our empirical analysis.
@@ -279,12 +279,10 @@ This momentum measure captures the cumulative price movement over one week and s
 In parallel, we define the \textbf{target return} as the one-day-ahead log return:
 
 \[
-r_{t+1} = \log\left(\frac{P_{t+1}}{P_t}\right)
+r_{t+1} = \log\left(\frac{p_{t+1}}{p_t}\right)
 \]
 
 This simplistic setup aligns with our objective of forecasting next-day returns based on a recent trend.
-
-**Baseline Predictive Model: 7d-Momentum-Only**
 
 ```{r results='asis', echo = FALSE}
 # Compute 7-day momentum
@@ -359,11 +357,11 @@ r_{t+1} = \alpha + \sum_{h \in \{3,7,14\}} \beta_h \cdot \text{Momentum}_t^{(h)}
 where \( X_t^{(j)} \) represents the set of technical indicators (RSI, MACD, ATR, SMA), weekday dummies, ETH-based and BTC-based predictors.
 
 \begin{align*}
-r_{t+1} &:= \log\left(\frac{P_{t+1}}{P_t}\right) \quad \text{(one-day-ahead LINK return)} \\
-\text{Momentum}_t^{(h)} &:= \log\left(\frac{P_t}{P_{t-h}}\right) \quad \text{for } h \in \{3, 7, 14\} \\
+r_{t+1} &:= \log\left(\frac{p_{t+1}}{p_t}\right) \quad \text{(one-day-ahead LINK return)} \\
+\text{Momentum}_t^{(h)} &:= \log\left(\frac{p_t}{p_{t-h}}\right) \quad \text{for } h \in \{3, 7, 14\} \\
 \text{Volatility}_t^{(7)} &:= \text{std} \left( r_{t-6}, \ldots, r_t \right) \\
-\text{BTC return}_t &:= \log\left(\frac{P^{\text{BTC}}_t}{P^{\text{BTC}}_{t-1}} \right) \\
-\text{BTC Momentum}_t^{(7)} &:= \log\left(\frac{P^{\text{BTC}}_t}{P^{\text{BTC}}_{t-7}}\right) \\
+\text{BTC return}_t &:= \log\left(\frac{p^{\text{BTC}}_t}{p^{\text{BTC}}_{t-1}} \right) \\
+\text{BTC Momentum}_t^{(7)} &:= \log\left(\frac{p^{\text{BTC}}_t}{p^{\text{BTC}}_{t-7}}\right) \\
 \text{BTC Volatility}_t^{(7)} &:= \text{std} \left( r^{\text{BTC}}_{t-6}, \ldots, r^{\text{BTC}}_t \right)
 \end{align*}
 The ETH-based predictors are constructed analogously to the BTC-based predictors.
