@@ -2,6 +2,7 @@
 subtitle: "Project Class Asset Management - Ulm University"
 title: "Predicting LINK Returns: A Data-Driven Approach to Short-Term Crypto Trading"
 author: "Erich Gozebina, Daria Palitzsch, Laura Gullicksen"
+supervisor: "Prof. Dr. Andre Güttler, Tim Baumgartner"
 date: "July 8, 2025"
 output:
   pdf_document:
@@ -53,14 +54,11 @@ Sys.setenv(TZ='UCT') #set timezone!
 
 Cryptocurrency markets are known for their extreme volatility, behavioral trading dynamics, and weak-form inefficiencies. Unlike traditional financial markets, they operate 24/7, are highly speculative, and are heavily influenced by sentiment, momentum, and macro-crypto developments. This environment creates both substantial risk and potential reward, especially for strategies that can extract signals from the surrounding noise.
 
-In this report, we design and evaluate a short-term trading strategy for Chainlink's native token LINK, a top-25 cryptocurrency that serves as a compensation token in a decentralized oracle network within the DeFi ecosystem. LINK stands out as a compelling asset due to its high liquidity, large market cap, and fundamental utility, which make it less susceptible to manipulation and more likely to exhibit predictable price dynamics.
+In this report, we design and evaluate a short-term trading strategy for Chainlink's native token LINK, a top-25 cryptocurrency that serves as a compensation token in a decentralized oracle network within the DeFi ecosystem \cite{CHL21}. LINK stands out as a compelling asset due to its high liquidity, large market cap, and fundamental utility, which make it less susceptible to manipulation and more likely to exhibit predictable price dynamics.
 Our objective is to develop a predictive model for daily returns based on economically interpretable variables, with a focus on 7-day momentum, technical indicators, and macro-crypto factors such as Bitcoin return. We implement this model using linear regression and the LASSO shrinkage method, allowing us to balance interpretability with robustness by filtering out noisy predictors. Zaremba et al. (2021), for example, found that short-term momentum effects are more pronounced in large, liquid cryptocurrencies, supporting the suitability of LINK for a trend-based predictive strategy. Its historical trading behavior further confirms the presence of exploitable short-term return persistence.
 To assess the practical viability of the strategy, we apply a backtest using daily data from October 2017 to April 2024. We incorporate realistic assumptions, including transaction costs, and benchmark the strategy’s performance against both buy-and-hold and naïve momentum approaches. 
 Our contribution lies in demonstrating that even in a highly volatile and seemingly chaotic market like crypto, structured, data-driven strategies can identify persistent short-term patterns. By combining economic intuition with statistical learning, we provide a transparent and replicable framework for active management in digital asset markets.
 
-```{r, include = FALSE}
-#Zaremba, A., Bilgin, M. H., Long, H., Mercik, A., & Szczygielski, J. J. (2021). Up or down? Short-term reversal, momentum, and liquidity effects in cryptocurrency markets. International Review of Financial Analysis, 78, 101908.
-```
 
 \newpage
 
@@ -173,7 +171,7 @@ The underlying reason is the assumption that prices of an financial asset are lo
 \log(x+1) \approx x.
 \]
 
-Daily returns are small, justifying log-return approximations. Another important property is the additivity of log returns. It allows us to aggregate returns over multiple periods by summing up the pointwise log returns - a property that canonical returns miss. These properties make log returns more suitable for linear regression models, hypothesis testing, and machine learning regressors.
+Daily returns are small, justifying log-return approximations. Another important property is the additivity of log returns. It allows us to aggregate returns over multiple periods by summing up the pointwise log returns - a property that canonical returns miss. These properties make log returns more suitable for linear regression models, hypothesis testing, and machine learning regressors \cite{RLR22}.
 
 To better understand the characteristics of the LINK price and return time series, we present a set of descriptive statistics based on the daily close prices and the corresponding log returns. These statistics provide a first impression of the dataset’s distribution, dispersion, and extreme values, and help assess whether further preprocessing or transformation steps are necessary before applying predictive models.
 
@@ -610,7 +608,7 @@ However, the extended OLS regression model considers all features equivalently, 
 
 **LASSO Model**
 
-To prevent overfitting and perform automatic variable selection, we extend our linear modeling approach using the Least Absolute Shrinkage and Selection Operator (LASSO). The LASSO adds a penalty term to the standard OLS loss function, shrinking some coefficient estimates toward zero. This results in a sparse model that may improve predictive performance, particularly when dealing with multiple correlated predictors. Furthermore, reducing the number of relevant features allows for a better interpretation of simulation results.
+To prevent overfitting and perform automatic variable selection, we extend our linear modeling approach using the Least Absolute Shrinkage and Selection Operator (LASSO). The LASSO adds a penalty term to the standard OLS loss function, shrinking some coefficient estimates toward zero. This results in a sparse model that may improve predictive performance, particularly when dealing with multiple correlated predictors. Furthermore, reducing the number of relevant features allows for a better interpretation of simulation results \cite{ISL13}.
 
 The LASSO estimator is defined as the solution to the following optimization problem:
 
@@ -915,7 +913,7 @@ The procedure:
 
 
 This setup computes the daily strategy returns by multiplying the lagged signal with the actual log return.
-Additionally, we estimate the trading costs by applying a fixed fee per position change to simulate realistic trading costs. For the trading costs we consider the average Ethereum gas price per day and multiply it by 60,000, which roughly coincides with the factor for ERC-20 token transfer on the Ethereum blockchain.
+Additionally, we estimate the trading costs by applying a fixed fee per position change to simulate realistic trading costs. For the trading costs we estimate the average Ethereum gas price per day and multiply it by 60,000, which exceeds the factor for ERC-20 token transfer on the Ethereum blockchain but includes a safety margin \cite{GAS25}.
 
 This approach emphasizes selective participation in the market based on the model's confidence and allows us to assess whether models can not only predict returns but also generate economically meaningful signals.
 
@@ -1097,153 +1095,6 @@ Additionally, the LASSO-based approach, by design, captures only linear relation
 These limitations, however, open promising avenues for further enhancement. Future iterations of the strategy could integrate execution-aware trading algorithms and explore nonlinear modeling techniques, such as deep neural networks or tree-based ensembles, to better capture complex market behavior. By addressing these challenges, the strategy could evolve into a more powerful and realistic tool for active crypto asset management.
 
 
-```{r, echo = FALSE}
-# 1) Compute daily strategy returns & cumulative log-returns
-# df_test_extended <- df_test_extended %>%
-#   mutate(
-#     # daily strategy log-returns = signal × next-day log return
-#     ret_benchmark      = dir_benchmark  * target_return,
-#     ret_extended       = dir_extended   * target_return,
-#     ret_lasso          = dir_lasso      * target_return,
-#     # cumulative log returns
-#     cum_ret_benchmark  = cumsum(coalesce(ret_benchmark,  0)),
-#     cum_ret_extended   = cumsum(coalesce(ret_extended,   0)),
-#     cum_ret_lasso      = cumsum(coalesce(ret_lasso,      0)),
-#     cum_ret_bh         = cumsum(coalesce(log_return,      0))
-#   )
-# 
-# # 2) Pivot to long format
-# df_plot <- df_test_extended %>%
-#   select(date,
-#          "Buy & Hold"      = cum_ret_bh,
-#         "Benchmark"         = cum_ret_benchmark,
-#          "Extended Model"    = cum_ret_extended,
-#         "Lasso Model"       = cum_ret_lasso
-#   ) %>%
-#   pivot_longer(-date, names_to = "Strategy", values_to = "Cumulative_Log_Return")
-# 
-# # 3) Plot
-# ggplot(df_plot, aes(x = date, y = Cumulative_Log_Return, color = Strategy)) +
-#   geom_line(linewidth = 1) +
-#   scale_color_manual(
-#     values = c(
-#       "Benchmark" = "blue",   # Blue
-#       "Buy & Hold"     = "black",
-#       "Lasso Model"          = "darkred",
-#       "Extended Model" = "green")
-#     ) +
-#   labs(
-#     title = "Cumulative Log Returns: Buy-&-Hold vs. Benchmark, Extended & Lasso",
-#     x     = "Date",
-#     y     = "Cumulative Log Return",
-#     color = NULL
-#   ) +
-#   theme_minimal()
-```
-
-
-```{r, echo = FALSE}
-
-#COMMENTED OUT BECAUSE OF LONG RUNNING TIME
-
-#define a function to run the rolling out-of-sample lasso regression
-# run_rolling_lasso <- function(df, y_var, window_size = 500, x_vars = NULL) {
-#   # Drop rows where the target variable is NA
-#   df <- df %>% filter(!is.na(.data[[y_var]]))
-#   
-#   # Automatically detect predictors if not provided
-#   if (is.null(x_vars)) {
-#     predictors <- setdiff(names(df), c("date", y_var))
-#   } else {
-#     predictors <- x_vars
-#   }
-#   
-#   # Storage for predictions
-#   predictions <- rep(NA, nrow(df))
-# 
-#   # Rolling window loop
-#   for (i in seq(window_size + 1, nrow(df))) {
-#     # Get training and test data
-#     train_data <- df[(i - window_size):(i - 1), ]
-#     test_data <- df[i, ]
-# 
-#     # Extract X and y matrices
-#     x_train <- as.matrix(train_data[, predictors])
-#     y_train <- train_data[[y_var]]
-# 
-#     x_test <- as.matrix(test_data[, predictors])
-# 
-#     # Fit LASSO model
-#     cv_fit <- cv.glmnet(x_train, y_train, alpha = 1)
-#     best_lambda <- cv_fit$lambda.min
-#     # Refit LASSO model using best lambda
-#     model <- glmnet(x_train, y_train, alpha = 1, lambda = best_lambda)
-# 
-#    # Predict for one-step ahead
-#     predictions[i] <- predict(model, newx = x_test)
-#   }
-# 
-#   # Return tibble with actual vs predicted
-#   tibble(
-#     date = df$date,
-#     actual = df[[y_var]],
-#     predicted = predictions
-#   )
-# }
-# 
-# x_vars <- colnames(df_extended)[!(colnames(df_extended) %in% c("date", "target_return"))]
-# 
-# # Keep only numeric predictors
-# x_vars_numeric <- x_vars[sapply(df_extended[, x_vars], is.numeric)]
-# 
-# # Filter for complete cases in x_vars_numeric + target_return
-# df_clean_rolling <- df_extended %>%
-#   dplyr::select(date, target_return, all_of(x_vars_numeric)) %>%
-#   filter(complete.cases(.))
-# 
-# #For each out-of-sample prediction, the model is trained on the previous 500 observations
-# results_rolling <- run_rolling_lasso(
-#   df = df_clean_rolling,
-#   y_var = "target_return",
-#   window_size = 500,
-#   x_vars = colnames(df_clean_rolling)[!(colnames(df_clean_rolling) %in% c("date", "target_return"))]
-# )
-
-```
-
-
-
-```{r, echo = FALSE}
-# # Make sure 'results' has no NAs in actual or predicted
-# results_clean_rolling <- results_rolling %>% filter(!is.na(actual), !is.na(predicted))
-# 
-# # Compute performance metrics
-# r_squared_rolling <- cor(results_clean_rolling$actual, results_clean_rolling$predicted)^2
-# mse_rolling <- mean((results_clean_rolling$actual - results_clean_rolling$predicted)^2)
-# directional_accuracy_rolling <- mean(sign(results_clean_rolling$actual) == sign(results_clean_rolling$predicted))
-# 
-# # Compute Sharpe Ratios (daily returns assumed)
-# sharpe_ratio_actual_rolling <- mean(results_clean_rolling$actual) / sd(results_clean_rolling$actual) * sqrt(252)
-# sharpe_ratio_pred_rolling <- mean(results_clean_rolling$predicted) / sd(results_clean_rolling$predicted) * sqrt(252)
-# 
-# # Print metrics
-# performance_metrics_rolling <- tibble(
-#   `R-squared` = r_squared_rolling,
-#   `MSE` = mse_rolling,
-#   `Directional Accuracy` = directional_accuracy_rolling,
-#   `Sharpe Ratio (Actual)` = sharpe_ratio_actual_rolling,
-#   `Sharpe Ratio (Predicted)` = sharpe_ratio_pred_rolling
-# )
-# 
-# performance_metrics_rolling %>%
-#   kable("latex", booktabs = TRUE, digits = 4,
-#         caption = "Table 5: Out-of-Sample Performance Metrics of LASSO Model") %>%
-#   kable_styling(latex_options = c("striped", "hold_position", "scale_down")) %>%
-#   row_spec(0, bold = TRUE)
-
-
-```
-
 \newpage
 ## 6. Conclusion
 
@@ -1251,8 +1102,62 @@ Our results demonstrate that short-term predictability in the crypto space is po
 While a simple 7-day momentum signal proved insufficient, we enhanced performance by incorporating a broad feature set: momentum signals, volatility indicators, cross-asset spillovers, technical indicators, and calendar effects. Our final model uses Lasso regression to select only the most predictive variables and prevent overfitting. The Lasso model achieves the highest out-of-sample \( R^2 \) (33.6%) and directional accuracy (73.6%), outperforming both buy-and-hold and naïve momentum strategies.
 However, we made simplifying assumptions, such as perfect trade execution at the daily close price, which limits the model’s applicability in real-world settings. In practice, slippage and latency can significantly impact returns, especially in volatile or illiquid markets. Additionally, the model captures only linear relationships, potentially missing complex market dynamics. These limitations emphasize opportunities for further enhancement, such as incorporating deep neural networks to better model nonlinear behavior.
 
+
 \newpage
-## A Appendix
+\bibliographystyle{alphadin}
+\begin{thebibliography}{56}
+
+\bibitem{ISL13}
+	\textsc{James}, G., \textsc{Witten}, D., \textsc{Hastie}, T., \textsc{Tibshirani}, R.:
+	\textit{An Introduction to
+Statistical Learning},
+	Springer,
+	2013
+	
+\bibitem{RLR22}
+  \textsc{Gunderson}, G.: 
+  \textit{Returns and Log Returns} [online], 6 Feb. 2022, URL: gregorygundersen.com/blog/2022/02/06/log-returns [Retrieved: 08 Jul. 2025]
+  
+\bibitem{CHL21}
+  \textsc{Breidenbach}, L., \textsc{Cachin}, C., \textsc{Chan}, B.: 
+  \textit{Chainlink 2.0: Next Steps in the Evolution of
+Decentralized Oracle Networks} [online], 15 Apr. 2021, URL: research.chain.link/whitepaper-v2.pdf [Retrieved: 08 Jul. 2025]
+
+\bibitem{UOD21}
+	\textsc{Zaremba}, A., \textsc{Bilgin}, M. H., \textsc{Long}, H., \textsc{Mercik}, A., \textsc{Szczygielski}, J. J.:
+	\textit{Up or down? Short-term reversal, momentum, and liquidity effects in cryptocurrency markets},
+	International Review of Financial Analysis,
+	2021
+	
+	
+\bibitem{GAS25}
+  \textsc{MetaMask}: 
+  \textit{User Guide: Gas} [online], URL: support.metamask.io/more-web3/learn/user-guide-gas [Retrieved: 08 Jul. 2025]
+
+
+\bibitem{RSI25}
+  \textsc{Wikipedia}: 
+  \textit{Relative strength index} [online], URL: en.wikipedia.org/wiki/Relative\_strength\_index [Retrieved: 08 Jul. 2025]
+  
+\bibitem{ATR25}
+  \textsc{Wikipedia}: 
+  \textit{Average true range} [online], URL: en.wikipedia.org/wiki/Average\_true\_range [Retrieved: 08 Jul. 2025]
+  
+\bibitem{SMA25}
+  \textsc{Wikipedia}: 
+  \textit{Moving average} [online], URL: en.wikipedia.org/wiki/Moving\_average [Retrieved: 08 Jul. 2025]
+  
+\bibitem{MACD25}
+  \textsc{Wikipedia}: 
+  \textit{MACD} [online], URL: en.wikipedia.org/wiki/MACD [Retrieved: 08 Jul. 2025]
+  
+	
+\end{thebibliography}
+
+
+
+\newpage
+## A Technical Indicators
 
 **14-Day Relative Strength Index (RSI)**
 
@@ -1266,7 +1171,7 @@ denoting an upward change and
 \[D = \text{close}_{t} - \text{close}_{t-n}\]
 a downward change respectively.
 
-In our model \(n\) is set to 14. RSI is often associated with overbought and oversold conditions.
+In our model \(n\) is set to 14. RSI is often associated with overbought and oversold conditions \cite{RSI25}.
 
 
 **Moving Average Convergence/Divergence (MACD)**
@@ -1276,21 +1181,21 @@ MACD then is constructed by:
 \[ \text{MACD} = \text{EWMA}_9(\text{EWMA}_{12}-\text{EWMA}_{26}), \]
 where \(\text{EWMA}_n(x)\) denotes the moving average of \(x\) with a time constant of \(n\).
 
-From an economic perspective, the MACD value can reveal changes in the trend of a financial asset, since it captures differences between averages of long- and short-term periods. This makes it a strong predictor, especially for assets with infrequent trend changes.
+From an economic perspective, the MACD value can reveal changes in the trend of a financial asset, since it captures differences between averages of long- and short-term periods. This makes it a strong predictor, especially for assets with infrequent trend changes \cite{MACD25}.
 
 **Simple Moving Average (SMA) Difference**
 
 By the SMA Difference we denote the difference between a simple moving average of the close prices of the last 7 days and the last 14 days. Let \(\text{SMA}_n\) be the average close price of the last n days. Then
 \[\text{SMA}_{Diff} = \text{SMA}_{7}-\text{SMA}_{14}\]
 
-The SMA Difference indicates short-term momentum relative to the longer-term trend. A positive value suggests recent prices are rising faster than the broader trend, potentially signaling bullish sentiment, while a negative value may indicate emerging bearish pressure.
+The SMA Difference indicates short-term momentum relative to the longer-term trend. A positive value suggests recent prices are rising faster than the broader trend, potentially signaling bullish sentiment, while a negative value may indicate emerging bearish pressure \cite{SMA25}.
 
 **Average True Range (ATR)**
 
 ATR measures market volatility by averaging the true range over a specified period. Let \(\text{TR}_t = \max\{ \text{High}_t - \text{Low}_t, |\text{High}_t - \text{Close}_{t-1}|, |\text{Low}_t - \text{Close}_{t-1}| \}\) be the true range on day \(t\). Then the 14-day ATR is defined as:
 \[\text{ATR}_{14} = \frac{1}{14} \sum_{i=0}^{13} \text{TR}_{t-i}\]
 
-The ATR reflects how much an asset typically moves in a day, with higher values indicating greater volatility. It does not indicate price direction but helps assessing risk and adjusting position sizes or stop-loss levels accordingly.
+The ATR reflects how much an asset typically moves in a day, with higher values indicating greater volatility. It does not indicate price direction but helps assessing risk and adjusting position sizes or stop-loss levels accordingly \cite{ATR25}.
 
 
 
