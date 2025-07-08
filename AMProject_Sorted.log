@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2025.7.8)  8 JUL 2025 07:13
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2025.7.8)  8 JUL 2025 11:30
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -663,17 +663,17 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 
 {c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/enc/dvips/lm/lm-ec.enc}]
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <12> on input line 179.
+(Font)              <12> on input line 181.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <8> on input line 179.
+(Font)              <8> on input line 181.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <6> on input line 179.
+(Font)              <6> on input line 181.
 <AMProject_Sorted_files/figure-latex/arranged_plots-1.pdf, id=15, 469.755pt x 325.215pt>
 File: AMProject_Sorted_files/figure-latex/arranged_plots-1.pdf Graphic file (type pdf)
 <use AMProject_Sorted_files/figure-latex/arranged_plots-1.pdf>
-Package pdftex.def Info: AMProject_Sorted_files/figure-latex/arranged_plots-1.pdf  used on input line 198.
+Package pdftex.def Info: AMProject_Sorted_files/figure-latex/arranged_plots-1.pdf  used on input line 200.
 (pdftex.def)             Requested size: 469.75386pt x 325.2142pt.
-LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 208.
+LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 210.
 (c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/tex/latex/lm/ts1lmr.fd
 File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
@@ -690,7 +690,7 @@ LaTeX Warning: `!h' float specifier changed to `!ht'.
 <AMProject_Sorted_files/figure-latex/acf_plot-1.pdf, id=52, 469.755pt x 325.215pt>
 File: AMProject_Sorted_files/figure-latex/acf_plot-1.pdf Graphic file (type pdf)
 <use AMProject_Sorted_files/figure-latex/acf_plot-1.pdf>
-Package pdftex.def Info: AMProject_Sorted_files/figure-latex/acf_plot-1.pdf  used on input line 312.
+Package pdftex.def Info: AMProject_Sorted_files/figure-latex/acf_plot-1.pdf  used on input line 314.
 (pdftex.def)             Requested size: 469.75386pt x 325.2142pt.
 
 
@@ -719,7 +719,7 @@ LaTeX Warning: `!h' float specifier changed to `!ht'.
 [12]
 
 [13]
-LaTeX Font Info:    Trying to load font information for U+dsrom on input line 700.
+LaTeX Font Info:    Trying to load font information for U+dsrom on input line 702.
 (c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/tex/latex/doublestroke/Udsrom.fd
 File: Udsrom.fd 1995/08/01 v0.1 Double stroke roman font definitions
 )
@@ -734,12 +734,12 @@ LaTeX Warning: `!h' float specifier changed to `!ht'.
 <AMProject_Sorted_files/figure-latex/lasso_actvspred_plot-1.pdf, id=128, 469.755pt x 325.215pt>
 File: AMProject_Sorted_files/figure-latex/lasso_actvspred_plot-1.pdf Graphic file (type pdf)
 <use AMProject_Sorted_files/figure-latex/lasso_actvspred_plot-1.pdf>
-Package pdftex.def Info: AMProject_Sorted_files/figure-latex/lasso_actvspred_plot-1.pdf  used on input line 819.
+Package pdftex.def Info: AMProject_Sorted_files/figure-latex/lasso_actvspred_plot-1.pdf  used on input line 821.
 (pdftex.def)             Requested size: 469.75386pt x 325.2142pt.
 <AMProject_Sorted_files/figure-latex/lasso_cum_plot-1.pdf, id=129, 469.755pt x 325.215pt>
 File: AMProject_Sorted_files/figure-latex/lasso_cum_plot-1.pdf Graphic file (type pdf)
 <use AMProject_Sorted_files/figure-latex/lasso_cum_plot-1.pdf>
-Package pdftex.def Info: AMProject_Sorted_files/figure-latex/lasso_cum_plot-1.pdf  used on input line 855.
+Package pdftex.def Info: AMProject_Sorted_files/figure-latex/lasso_cum_plot-1.pdf  used on input line 857.
 (pdftex.def)             Requested size: 469.75386pt x 325.2142pt.
 
 
@@ -752,32 +752,32 @@ Package pdftex.def Info: AMProject_Sorted_files/figure-latex/lasso_cum_plot-1.pd
 [19]
 
 [20]
-Underfull \hbox (badness 4316) in paragraph at lines 948--950
+Underfull \hbox (badness 4316) in paragraph at lines 950--952
 []\T1/lmr/m/sc/12 Gunderson\T1/lmr/m/n/12 , G.: \T1/lmr/m/it/12 Re-turns and Log Re-turns \T1/lmr/m/n/12 [on-line], 6 Feb. 2022, URL:
  []
 
 
-Underfull \hbox (badness 2173) in paragraph at lines 952--955
+Underfull \hbox (badness 2173) in paragraph at lines 954--957
 []\T1/lmr/m/sc/12 Breidenbach\T1/lmr/m/n/12 , L., \T1/lmr/m/sc/12 Cachin\T1/lmr/m/n/12 , C., \T1/lmr/m/sc/12 Chan\T1/lmr/m/n/12 , B.: \T1/lmr/m/it/12 Chain-link 2.0: Next Steps in
  []
 
 
-Underfull \hbox (badness 1990) in paragraph at lines 952--955
+Underfull \hbox (badness 1990) in paragraph at lines 954--957
 \T1/lmr/m/it/12 the Evo-lu-tion of De-cen-tral-ized Or-a-cle Net-works \T1/lmr/m/n/12 [on-line], 15 Apr. 2021, URL:
  []
 
 
-Underfull \hbox (badness 6364) in paragraph at lines 964--966
+Underfull \hbox (badness 6364) in paragraph at lines 966--968
 []\T1/lmr/m/sc/12 MetaMask\T1/lmr/m/n/12 : \T1/lmr/m/it/12 User Guide: Gas \T1/lmr/m/n/12 [on-line], URL: support.metamask.io/more-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 969--971
+Underfull \hbox (badness 10000) in paragraph at lines 971--973
 []\T1/lmr/m/sc/12 Wikipedia\T1/lmr/m/n/12 : \T1/lmr/m/it/12 Rel-a-tive strength in-dex \T1/lmr/m/n/12 [on-line], URL:
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 973--975
+Underfull \hbox (badness 10000) in paragraph at lines 975--977
 []\T1/lmr/m/sc/12 Wikipedia\T1/lmr/m/n/12 : \T1/lmr/m/it/12 Av-er-age true range \T1/lmr/m/n/12 [on-line], URL:
  []
 
@@ -794,15 +794,15 @@ L3 programming layer <2025-06-30>
  ***********
  ) 
 Here is how much of TeX's memory you used:
- 14173 strings out of 469803
- 227665 string characters out of 5481114
- 661069 words of memory out of 5000000
+ 14174 strings out of 469803
+ 227674 string characters out of 5481114
+ 661065 words of memory out of 5000000
  42201 multiletter control sequences out of 15000+600000
  687024 words of font info for 89 fonts, out of 8000000 for 9000
- 14 hyphenation exceptions out of 8191
+ 15 hyphenation exceptions out of 8191
  77i,13n,81p,479b,529s stack positions out of 10000i,1000n,20000p,200000b,200000s
 <c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/doublestroke/dsrom12.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmbx12.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmcsc10.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmex10.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmmi12.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmmi8.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmr12.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmr17.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmr6.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmr8.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmri12.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmsy10.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmsy8.pfb>
-Output written on AMProject_Sorted.pdf (23 pages, 463870 bytes).
+Output written on AMProject_Sorted.pdf (23 pages, 463894 bytes).
 PDF statistics:
  298 PDF objects out of 1000 (max. 8388607)
  233 compressed objects within 3 object streams

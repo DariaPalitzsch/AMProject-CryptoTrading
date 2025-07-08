@@ -22,7 +22,10 @@ header-includes:
 - \usepackage{placeins}
 - \FloatBarrier
 - \usepackage{mdframed}
+
 ---
+
+\hyphenation{dy-na-mics}
 
 ```{r setup, include=FALSE}
 #setup chunk to load all required packages
@@ -1020,8 +1023,12 @@ plot_2_inout <-  ggplot(df_test_extended, aes(x = date)) +
   geom_line(aes(y = exp(cum_benchmark_return), color = "7-Day Momentum")) +
   geom_line(aes(y = exp(cum_extended_return), color = "Linear Regression")) +
   geom_line(aes(y = exp(cum_lasso_return), color = "LASSO")) +
-  labs(title = "Cumulative Returns: LASSO vs 7-Day Momentum vs LR",
-       x = "Date", y = "Cumulative Return") +
+  labs(
+    title = "Cumulative Returns: LASSO vs 7-Day Momentum vs LR",
+    x = "Date", 
+    y = "Cumulative Return",
+    color = "Strategy"
+    ) +
   scale_color_manual(values = c("Buy&Hold" = "black",
                                 "7-Day Momentum" = "blue",
                                 "Linear Regression" = "green",
@@ -1035,10 +1042,13 @@ plot_3_inout <- ggplot(df_test_extended, aes(x = date)) +
   geom_line(aes(y = (cum_fees_benchmark), color = "7-Day Momentum")) +
   geom_line(aes(y = (cum_fees_extended), color = "Linear Regression")) +
   geom_line(aes(y = (cum_fees_lasso), color = "LASSO")) +
-  labs(title = "Cumulative Fees: LASSO vs 7-Day Momentum vs LR",
-       x = "Date", y = "Cumulative Fees (USD)") +
-  scale_color_manual(values = c("Buy&Hold" = "black",
-                                "7-Day Momentum" = "blue",
+  labs(
+    title = "Cumulative Fees: LASSO vs 7-Day Momentum vs LR",
+    x = "Date", 
+    y = "Cumulative Fees (USD)",
+    color = "Strategy"
+    ) +
+  scale_color_manual(values = c("7-Day Momentum" = "blue",
                                 "Linear Regression" = "green",
                                 "LASSO" = "darkred"
                                 )) +
@@ -1058,7 +1068,7 @@ The green region denotes instances where the predicted and actual returns have t
 While the spread around the diagonal indicates that exact return magnitudes are not always accurately predicted, the high density in the green region supports the model’s strong directional accuracy (see Table 6). This suggests that the LASSO model is well-suited for sign-based trading rules, even if its point predictions are noisy.
 
 
-```{r lasso_cum_plot, fig.cap = "Cumulative Performance of Trading Strategies (Log Returns and Fees)", fig.align = "center", echo = FALSE, message = FALSE, warning = FALSE}
+```{r lasso_cum_plot, fig.cap = "Cumulative Performance of Trading Strategies (Returns and Fees)", fig.align = "center", echo = FALSE, message = FALSE, warning = FALSE}
 #show the other two plots separately 
 
 grid.arrange(plot_2_inout, plot_3_inout, ncol = 1, nrow = 2)
