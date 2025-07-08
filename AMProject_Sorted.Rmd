@@ -1117,6 +1117,16 @@ However, we made simplifying assumptions, such as perfect trade execution at the
 \bibliographystyle{alphadin}
 \begin{thebibliography}{56}
 
+\bibitem{CHL21}
+  \textsc{Breidenbach}, L., \textsc{Cachin}, C., \textsc{Chan}, B.: 
+  \textit{Chainlink 2.0: Next Steps in the Evolution of
+Decentralized Oracle Networks} [online], 15 Apr. 2021, URL: research.chain.link/whitepaper-v2.pdf [Retrieved: 08 Jul. 2025]
+
+\bibitem{RLR22}
+  \textsc{Gunderson}, G.: 
+  \textit{Returns and Log Returns} [online], 6 Feb. 2022, URL: gregorygundersen.com/blog/2022/02/06/log-returns [Retrieved: 08 Jul. 2025]
+
+
 \bibitem{ISL13}
 	\textsc{James}, G., \textsc{Witten}, D., \textsc{Hastie}, T., \textsc{Tibshirani}, R.:
 	\textit{An Introduction to
@@ -1124,25 +1134,10 @@ Statistical Learning},
 	Springer,
 	2013
 	
-\bibitem{RLR22}
-  \textsc{Gunderson}, G.: 
-  \textit{Returns and Log Returns} [online], 6 Feb. 2022, URL: gregorygundersen.com/blog/2022/02/06/log-returns [Retrieved: 08 Jul. 2025]
-  
-\bibitem{CHL21}
-  \textsc{Breidenbach}, L., \textsc{Cachin}, C., \textsc{Chan}, B.: 
-  \textit{Chainlink 2.0: Next Steps in the Evolution of
-Decentralized Oracle Networks} [online], 15 Apr. 2021, URL: research.chain.link/whitepaper-v2.pdf [Retrieved: 08 Jul. 2025]
-
-\bibitem{UOD21}
-	\textsc{Zaremba}, A., \textsc{Bilgin}, M. H., \textsc{Long}, H., \textsc{Mercik}, A., \textsc{Szczygielski}, J. J.:
-	\textit{Up or down? Short-term reversal, momentum, and liquidity effects in cryptocurrency markets},
-	International Review of Financial Analysis,
-	2021
-	
-	
 \bibitem{GAS25}
   \textsc{MetaMask}: 
   \textit{User Guide: Gas} [online], URL: support.metamask.io/more-web3/learn/user-guide-gas [Retrieved: 08 Jul. 2025]
+
 
 
 \bibitem{RSI25}
@@ -1160,6 +1155,14 @@ Decentralized Oracle Networks} [online], 15 Apr. 2021, URL: research.chain.link/
 \bibitem{MACD25}
   \textsc{Wikipedia}: 
   \textit{MACD} [online], URL: en.wikipedia.org/wiki/MACD [Retrieved: 08 Jul. 2025]
+  
+
+\bibitem{UOD21}
+	\textsc{Zaremba}, A., \textsc{Bilgin}, M. H., \textsc{Long}, H., \textsc{Mercik}, A., \textsc{Szczygielski}, J. J.:
+	\textit{Up or down? Short-term reversal, momentum, and liquidity effects in cryptocurrency markets},
+	International Review of Financial Analysis,
+	2021
+	
   
 	
 \end{thebibliography}

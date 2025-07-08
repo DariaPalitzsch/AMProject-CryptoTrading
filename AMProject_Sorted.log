@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2025.7.8)  8 JUL 2025 11:30
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2025.7.8)  8 JUL 2025 11:35
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -752,32 +752,32 @@ Package pdftex.def Info: AMProject_Sorted_files/figure-latex/lasso_cum_plot-1.pd
 [19]
 
 [20]
-Underfull \hbox (badness 4316) in paragraph at lines 950--952
-[]\T1/lmr/m/sc/12 Gunderson\T1/lmr/m/n/12 , G.: \T1/lmr/m/it/12 Re-turns and Log Re-turns \T1/lmr/m/n/12 [on-line], 6 Feb. 2022, URL:
- []
-
-
-Underfull \hbox (badness 2173) in paragraph at lines 954--957
+Underfull \hbox (badness 2173) in paragraph at lines 943--946
 []\T1/lmr/m/sc/12 Breidenbach\T1/lmr/m/n/12 , L., \T1/lmr/m/sc/12 Cachin\T1/lmr/m/n/12 , C., \T1/lmr/m/sc/12 Chan\T1/lmr/m/n/12 , B.: \T1/lmr/m/it/12 Chain-link 2.0: Next Steps in
  []
 
 
-Underfull \hbox (badness 1990) in paragraph at lines 954--957
+Underfull \hbox (badness 1990) in paragraph at lines 943--946
 \T1/lmr/m/it/12 the Evo-lu-tion of De-cen-tral-ized Or-a-cle Net-works \T1/lmr/m/n/12 [on-line], 15 Apr. 2021, URL:
  []
 
 
-Underfull \hbox (badness 6364) in paragraph at lines 966--968
+Underfull \hbox (badness 4316) in paragraph at lines 948--950
+[]\T1/lmr/m/sc/12 Gunderson\T1/lmr/m/n/12 , G.: \T1/lmr/m/it/12 Re-turns and Log Re-turns \T1/lmr/m/n/12 [on-line], 6 Feb. 2022, URL:
+ []
+
+
+Underfull \hbox (badness 6364) in paragraph at lines 960--962
 []\T1/lmr/m/sc/12 MetaMask\T1/lmr/m/n/12 : \T1/lmr/m/it/12 User Guide: Gas \T1/lmr/m/n/12 [on-line], URL: support.metamask.io/more-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 971--973
+Underfull \hbox (badness 10000) in paragraph at lines 966--968
 []\T1/lmr/m/sc/12 Wikipedia\T1/lmr/m/n/12 : \T1/lmr/m/it/12 Rel-a-tive strength in-dex \T1/lmr/m/n/12 [on-line], URL:
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 975--977
+Underfull \hbox (badness 10000) in paragraph at lines 970--972
 []\T1/lmr/m/sc/12 Wikipedia\T1/lmr/m/n/12 : \T1/lmr/m/it/12 Av-er-age true range \T1/lmr/m/n/12 [on-line], URL:
  []
 
@@ -802,7 +802,7 @@ Here is how much of TeX's memory you used:
  15 hyphenation exceptions out of 8191
  77i,13n,81p,479b,529s stack positions out of 10000i,1000n,20000p,200000b,200000s
 <c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/doublestroke/dsrom12.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmbx12.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmcsc10.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmex10.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmmi12.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmmi8.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmr12.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmr17.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmr6.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmr8.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmri12.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmsy10.pfb><c:/Users/ergoz/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmsy8.pfb>
-Output written on AMProject_Sorted.pdf (23 pages, 463894 bytes).
+Output written on AMProject_Sorted.pdf (23 pages, 463903 bytes).
 PDF statistics:
  298 PDF objects out of 1000 (max. 8388607)
  233 compressed objects within 3 object streams
